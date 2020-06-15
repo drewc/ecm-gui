@@ -1,0 +1,102 @@
+#+TITLE: ECM Gooey! People like a nice UI
+
+
+*ECM*, AKA *"Electronic Claims Manager"*, is an Information Technology System
+that allows its users to manage claims. Most of the users are not developers,
+nor database administrators, or even users. In fact, Excel and Outlook are the
+primary two applications used.
+
+That means a User Interface is needed. This is it. 
+
+
+* EMACS 
+
+#+begin_src emacs-lisp 
+  (setq js-indent-level 2)
+#+end_src
+
+#+RESULTS:
+: 2
+
+* Update Quasar 
+
+Always the latest as the docs work that way :) 
+
+#+begin_src
+yarn upgrade quasar@latest
+yarn add @quasar/extras@latest
+
+quasar upgrade
+quasar upgrade --install
+
+# then
+
+npm rebuild
+#+end_src
+
+* ECM App (ecm-gui)
+  :PROPERTIES:
+  :CUSTOM_ID: ecm-app-ecm-gui
+  :END:
+
+Electronic Claims Manager
+
+** Install the dependencies
+   :PROPERTIES:
+   :CUSTOM_ID: install-the-dependencies
+   :END:
+   
+#+BEGIN_SRC shell
+  yarn
+#+END_SRC
+
+** Update the deps
+
+#+begin_src
+yarn upgrade quasar@latest
+yarn add @quasar/extras@latest
+# OR 
+quasar upgrade
+quasar upgrade --install
+
+# then
+
+npm rebuild
+#+end_src
+#+end_src
+
+** Start the app in development mode (hot-code reloading, error
+
+reporting, etc.)
+    :PROPERTIES:
+    :CUSTOM_ID: start-the-app-in-development-mode-hot-code-reloading-error-reporting-etc.
+    :END:
+
+#+BEGIN_SRC sh
+  quasar dev
+#+END_SRC
+
+** Lint the files
+   :PROPERTIES:
+   :CUSTOM_ID: lint-the-files
+   :END:
+
+#+BEGIN_SRC sh
+  yarn run lint
+#+END_SRC
+
+** Build the app for production
+   :PROPERTIES:
+   :CUSTOM_ID: build-the-app-for-production
+   :END:
+
+#+BEGIN_SRC sh
+  quasar build
+#+END_SRC
+
+** Customize the configuration
+   :PROPERTIES:
+   :CUSTOM_ID: customize-the-configuration
+   :END:
+
+See [[https://quasar.dev/quasar-cli/quasar-conf-js][Configuring quasar.conf.js]].
