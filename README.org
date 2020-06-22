@@ -23,6 +23,8 @@ That means a User Interface is needed. This is it.
 Always the latest as the docs work that way :) 
 
 #+begin_src
+curl --compressed -o- -L https://yarnpkg.com/install.sh | bash
+
 yarn upgrade quasar@latest
 yarn add @quasar/extras@latest
 
@@ -31,6 +33,7 @@ quasar upgrade --install
 
 # then
 
+yarn upg
 npm rebuild
 #+end_src
 

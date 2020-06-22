@@ -1,0 +1,32 @@
+#+TITLE: Installing: Dev/Stage/Prod
+
+
+
+* Quasar CLI 
+
+  We are using [[#yarn2nix][yarn]]. https://quasar.dev/quasar-cli/installation is a quick read
+  but in essence:
+
+#+begin_src shell
+  yarn global add @quasar/cli
+  # in ~/.bashrc or equivalent
+  export PATH="$(yarn global bin):$PATH"
+#+end_src
+
+* Nix and yarn2nix 
+  :PROPERTIES:
+  :CUSTOM_ID: yarn2nix
+  :END:
+
+We've decided to use yarn over npm. Why? Because we've tried npm, and now it's
+yarn time.
+
+#+begin_src shell
+nix-channel --add https://nixos.org/channels/nixpkgs-unstable
+nix-channel --update
+nix-env -iA nixpkgs.yarn nixpkgs.yarn2nix nixpkgs.nodejs-12_x
+#+end_src
+
+
+
+

@@ -1,0 +1,351 @@
+#+TITLE: Masonry style layout with JavaScript and CSS Grid
+
+As a long term web developer, I've been dealing with different resolutions and
+the issues they cause with layout for over 2 decades now. For a brief period I
+thought we started having similar displays... then smart-phones came in. Sigh.
+
+Basically, for a large wide screen we want a 3 column layout. Medium? 2. Tiny? 
+
+[[https://medium.com/@andybarefoot/a-masonry-style-layout-using-css-grid-8c663d355ebb][Andy Barefoot]] has a wonderful article on how to use the CSS grid and, with a
+little bit of JavaScript, have the masonry like layout I so desire. There's a
+nice [[https://codepen.io/andybarefoot/pen/QMeZda][CodePen]] to go along with it.
+
+One of the issues with that is it specifies a width for every brick, and we want
+to change it. [[https://css-tricks.com/piecing-together-approaches-for-a-css-masonry-layout/][As luck would have it,]] there are a few approaches based on the CSS
+grid. [[https://w3bits.com/css-grid-masonry/][This one]] is based off of the first, but has a [[https://w3bits.com/tools/masonry-generator/][generator]] that essentially
+does the layout for us.
+
+* ~resizeMasonryItem~: Play with the grid!
+
+The articles are all based off one grid per "page". That becomes an issue if we
+want many grids per page. It's also not-so-performing as it does many lookups,
+and, of course, is not a *VueJS* or *Quasar* element.
+
+We have [[#MExpansionItem][~"bricks"~]] that expand and contract so it's not as simply at page render
+or resize time. All of those lead to a slightly more detailed ~resizeMasonryItem~.
+
+
+#+begin_src javascript :noweb-ref masonry-script
+  function isElement (element) {
+    return element instanceof Element || element instanceof HTMLDocument
+  }
+  function itemGrid (item) { if (isElement(item)) return item.closest('.masonry') }
+  function gridRowGap (grid) { if (isElement(grid)) return parseInt(window.getComputedStyle(grid).getPropertyValue('grid-row-gap')) }
+  function gridRowHeight (grid) { if (isElement(grid)) return parseInt(window.getComputedStyle(grid).getPropertyValue('grid-auto-rows')) }
+  function resizeMasonryItem (
+    item,
+    grid = itemGrid(item),
+    rowGap = gridRowGap(grid),
+    rowHeight = gridRowHeight(grid)
+  ) {
+    /* Get the grid object, its row-gap, and the size of its implicit rows */
+    if (isElement(grid)) {
+      var gridImagesAsContent = item.querySelector('img.masonry-content')
+
+      /*
+       ,* Spanning for any brick = S
+       ,* Grid's row-gap = G
+       ,* Size of grid's implicitly create row-track = R
+       ,* Height of item content = H
+       ,* Net height of the item = H1 = H + G
+       ,* Net height of the implicit row-track = T = G + R
+       ,* S = H1 / T
+       ,*/
+      console.log((item.querySelector('.masonry-content').getBoundingClientRect().height + rowGap))
+      var rowSpan = Math.ceil((item.querySelector('.masonry-content').getBoundingClientRect().height + rowGap) / (rowHeight + rowGap))
+
+      /* Set the spanning as calculated above (S) */
+      item.style.gridRowEnd = 'span ' + rowSpan
+      if (gridImagesAsContent) {
+        item.querySelector('img.masonry-content').style.height = item.getBoundingClientRect().height + 'px'
+      }
+    }
+  }
+#+end_src
+
+* The ~.masonry~ style.
+
+Apparently the ~grid-template-columns~ is what makes our grid. Any element
+underneath it is a brick in our grid with the same width (columns).
+
+#+begin_src css :noweb-ref masonry-style
+  .masonry-wrapper {
+    max-width: 4096px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+  .masonry {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(100px,1fr));
+    grid-gap: 6px;
+    grid-auto-rows: 0;
+  }
+  @media only screen and (max-width: 1023px) and (min-width: 768px) {
+    .masonry {
+      grid-template-columns: repeat(2, minmax(100px,1fr));
+    }
+  }
+  @media only screen and (min-width: 1024px) {
+    .masonry {
+      grid-template-columns: repeat(2, minmax(100px,1fr));
+    }
+  }
+  .masonry-item, .masonry-content {
+    border-radius: 4px;
+    /* overflow: hidden; */
+  }
+  .masonry-item {
+     margin-top: 0.15em;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    /* filter: drop-shadow(0px 2px 2px rgba(0, 0, 0, .3)); */
+    /* transition: filter .25s ease-in-out; */
+  }
+  /* .masonry-item:hover { */
+  /*   filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, .3)); */
+  /* } */
+  .masonry-content {
+    /* overflow: hidden; */
+  }
+  .masonry-item {
+    color: #111111;
+    background-color: white;
+  }
+#+end_src
+
+* Script
+
+
+#+begin_src javascript :noweb-ref masonry-script
+      /**
+       ,* Set appropriate spanning to any masonry item
+       ,*
+       ,* Get different properties we already set for the masonry, calculate 
+       ,* height or spanning for any cell of the masonry grid based on its 
+       ,* content-wrapper's height, the (row) gap of the grid, and the size 
+       ,* of the implicit row tracks.
+       ,*
+       ,* @param item Object A brick/tile/cell inside the masonry
+       ,*/
+      function resizeMasonryItem1 (
+        item, 
+        grid = item.closest('.masonry'),
+        rowGap = gridRowGap(grid)
+      ) {
+        /* Get the grid object, its row-gap, and the size of its implicit rows */
+        var rowHeight = parseInt(window.getComputedStyle(grid).getPropertyValue('grid-auto-rows'))
+
+        /*
+         ,* Spanning for any brick = S
+         ,* Grid's row-gap = G
+         ,* Size of grid's implicitly create row-track = R
+         ,* Height of item content = H
+         ,* Net height of the item = H1 = H + G
+         ,* Net height of the implicit row-track = T = G + R
+         ,* S = H1 / T
+         ,*/
+        var rowSpan = Math.ceil((item.querySelector('.masonry-content').getBoundingClientRect().height + rowGap) / (rowHeight + rowGap))
+
+        /* Set the spanning as calculated above (S) */
+        item.style.gridRowEnd = 'span ' + rowSpan
+      }
+      function hideBricks () {
+        var allItems = document.querySelectorAll('.masonry-item')
+        for (var i = 0; i < allItems.length; i++) {
+          allItems[i].style.opacity = '20%'
+        }
+      }
+
+      /**
+       ,* Apply spanning to all the masonry items
+       ,*
+       ,* Loop through all the items and apply the spanning to them using 
+       ,* `resizeMasonryItem()` function.
+       ,*
+       ,* @uses resizeMasonryItem
+       ,* @link https://w3bits.com/css-grid-masonry/
+       ,*/
+      function resizeAllMasonryItems (grid = document.getElementsByClassName('masonry')[0]) {
+        // Get all item class objects in one list
+        var allItems = document.querySelectorAll('.masonry-item')
+        /*
+         ,* Loop through the above list and execute the spanning function to
+         ,* each list-item (i.e. each masonry item)
+         ,*/
+        if (allItems) {
+          for (var i = 0; i < allItems.length; i++) {
+            resizeMasonryItem1(allItems[i])
+          }
+        }
+      }
+
+      /**
+       ,* Resize the items when all the images inside the masonry grid 
+       ,* finish loading. This will ensure that all the content inside our
+       ,* masonry items is visible.
+       ,*
+       ,* @uses ImagesLoaded
+       ,* @uses resizeMasonryItem
+       ,* @link https://w3bits.com/css-grid-masonry/
+       ,*/
+      // function waitForImages() {
+      //   //var grid = document.getElementById("masonry");
+      //   var allItems = document.querySelectorAll('.masonry-item');
+      //   if( allItems ) {
+      //     for(var i=0;i<allItems.length;i++){
+      //       imagesLoaded( allItems[i], function(instance) {
+      //         var item = instance.elements[0];
+      //         resizeMasonryItem(item);
+      //         console.log("Waiting for Images");
+      //       } );
+      //     }
+      //   }
+      // }
+
+      /* Resize all the grid items on the load and resize events */
+      var masonryEvents = ['load', 'resize']
+      masonryEvents.forEach(function (event) {
+        window.addEventListener(event, resizeAllMasonryItems)
+      })
+
+      /* Do a resize once more when all the images finish loading */
+      // waitForImages();
+
+      export default {
+        name: 'Masonry',
+        mounted () {
+          resizeAllMasonryItems()
+        },
+        methods: { 
+          resizeMasonryItem,
+          resizeMasonryItem1,
+          layBricks () {
+            console.log()
+            resizeAllMasonryItems()
+          },
+          hideBricks () {
+            hideBricks()
+          }
+        }
+      }
+#+end_src
+
+* Masonry Element
+#+begin_src vue :tangle "../src/components/Masonry.vue" :noweb yes
+  <template>
+    <div class="masonry-wrapper">
+      <div class="masonry">
+        <slot/>
+      </div>
+    </div>
+  </template>
+  <style>
+    code:<<masonry-style>>
+  </style>
+  <script>
+  code:<<masonry-script>>
+  </script>
+
+#+end_src
+
+* Another ~m-brick~ in the wall
+
+#+begin_src vue :tangle "../src/components/MBrick.vue"
+  <template>
+    <div class="masonry-item">
+      <div class="masonry-content">
+        <slot/>
+      </div>
+    </div>
+  </template>
+  <script>
+  export default {
+    name: 'MBrick'
+  }
+  </script>
+
+#+end_src
+
+
+* ~m-expansion-item~
+  :PROPERTIES:
+  :CUSTOM_ID: MExpansionItem
+  :END:
+
+Our expansion item is in fact a masonry brick. But, when expanding or
+contracting the masonry must be adjusted as well. So, a higher order component
+is needed.
+
+
+ - this.$attrs :: Type: { [key: string]: string } 
+                  
+                  Contains parent-scope attribute bindings (except for class and
+                  style) that are not recognized (and extracted) as props. When
+                  a component doesn’t have any declared props, this essentially
+                  contains all parent-scope bindings (except for class and
+                  style), and can be passed down to an inner component via
+                  v-bind="$attrs" - useful when creating higher-order
+                  components.
+
+#+begin_src javascript :noweb-ref mexp-code
+  import Masonry from 'components/Masonry'
+
+  export default {
+    name: 'MExpansionItem',
+    methods: {
+      reveal () {
+        Masonry.methods.resizeMasonryItem(this.$el.closest('.masonry-item'))
+        Masonry.methods.layBricks(); this.lower()
+      },
+      raise () {
+        console.log('Raising '); console.log(this.$el.closest('.masonry-item'))
+        this.$el.style.position = 'relative'
+        this.$el.style.zIndex = 1024
+      },
+      lower () {
+        this.$el.style.position = 'unset'
+        this.$el.style.zIndex = 'unset'
+      }
+    }
+  }
+#+end_src
+
+
+#+begin_src vue :tangle "../src/components/MExpansionItem.vue" :noweb yes
+  <template>
+    <q-expansion-item
+      @before-show="raise" @after-show="reveal" @after-hide="reveal" 
+      v-bind="$attrs"
+      >
+      <template slot="header">
+        <slot name="header"/>
+      </template>
+   <slot></slot>
+   </q-expansion-item>
+  </template>
+  <script> 
+  code:<<mexp-code>>
+  </script>
+
+#+end_src
+
+
+
+
+* Literate Tangling 
+
+Because our linting needs certain things to be indented, we fsck with noweb a wee bit.
+
+#+begin_src emacs-lisp
+  (setq-local org-babel-noweb-wrap-start "code:<<")
+  (add-hook 'org-babel-post-tangle-hook #'delete-trailing-whitespace)
+
+  (add-hook 'org-babel-post-tangle-hook #'save-buffer :append)
+  
+  (setq js-indent-level 2)
+  ;; # Local Variables:
+  ;; # org-babel-noweb-wrap-start: "code:<<"
+  ;; # End:
+#+end_src
+
+#+RESULTS:
+| delete-trailing-whitespace | save-buffer |

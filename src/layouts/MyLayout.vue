@@ -1,32 +1,33 @@
 <template>
-    <q-layout view="hHh lpR fFf" class="bg-grey-1">
-        <q-header elevated class="bg-white text-grey-8 q-py-xs" height-hint="58">
-            <q-toolbar v-if="$ecm.session">
-                <q-btn
-                  flat
-                  dense
-                  round
-                  @click="leftDrawerOpen = !leftDrawerOpen"
-                  aria-label="Menu"
-                  icon="menu"
+<q-layout view="hHh lpR fFf" class="bg-grey-1">
+  <q-header bordered class="bg-white text-grey-8 q-py-xs" height-hint="58">
+    <q-toolbar v-if="$ecm.session">
+      <q-btn
+        flat
+        dense
+        round
+        @click="leftDrawerOpen = !leftDrawerOpen"
+        aria-label="Menu"
+        icon="menu"
                 />
-
-                <q-btn flat no-caps no-wrap class="q-ml-xs" v-if="$q.screen.gt.xs">
-                    <q-icon name="img:statics/app-logo-128x128.png" color="red" size="50px" />
-                    <q-toolbar-title shrink class="text-weight-bold">
-                        ECM
-                    </q-toolbar-title>
-                </q-btn>
-                <!-- {{ $ecm.session }} -->
-                <q-space />
-
-                <div class="YL__toolbar-input-container row no-wrap">
-                    <q-input dense outlined square v-model="search" placeholder="Search" class="bg-white col" />
-                    <q-btn class="YL__toolbar-input-btn" color="grey-3" text-color="grey-8" icon="search" unelevated />
-                </div>
-
-                <q-space />
-
+      <q-btn flat no-caps no-wrap class="q-ml-xs" v-if="$q.screen.gt.xs">
+        <q-icon name="img:statics/app-logo-128x128.png" color="red" size="50px" />
+        <q-toolbar-title shrink class="text-weight-bold">
+          ECM
+        </q-toolbar-title>
+      </q-btn>
+      <!-- {{ $ecm.session }} -->
+      <q-space />
+       <q-form class="YL__toolbar-input-container row no-wrap"
+              @submit="searchMethod()" ref="searchForm">
+         <q-input dense outlined square v-model="search" placeholder="Search" class="bg-white col" />
+         <q-btn type="submit"
+           :loading="searchLoading"
+           class="YL__toolbar-input-btn"
+           color="grey-3" text-color="grey-8" icon="search" unelevated
+      />
+       </q-form>
+      <q-space />
                 <div class="q-gutter-sm row items-center no-wrap">
                     <q-btn round dense flat color="grey-8" icon="video_call" v-if="$q.screen.gt.sm">
                         <q-tooltip>Create a video or post</q-tooltip>
@@ -151,19 +152,20 @@
 </template>
 
 <script>
-// import { fabYoutube } from '@quasar/extras/fontawesome-v5'
-// import { Foo } from 'components/Foo'
-// import PinPad from 'components/PinPad'
-// import PersonSelect from 'components/PersonSelect'
-
 export default {
   name: 'MyLayout',
   components: {
-  //    'foo': Foo,
-  //  PinPad,
-  //  PersonSelect
   },
   methods: {
+    searchMethod: function () {
+      this.searchLoading = true
+      this.$router.push({ path: '/claim/' + this.search })
+      this.search = ''
+      setTimeout(() => {
+        // we're done, we reset loading state
+        this.searchLoading = false
+      }, 500)
+    },
     ensureSession: function (rp) {
       return this.$ecm.findSessionPromise()
         .then((sess) => {
@@ -198,6 +200,7 @@ export default {
     return {
       leftDrawerOpen: false,
       search: '',
+      searchLoading: false,
       links1: [
         { icon: 'home', text: 'Home' },
         { icon: 'whatshot', text: 'Trending' },
@@ -239,6 +242,7 @@ export default {
   }
 
 }
+
 </script>
 
 <style lang="sass">
