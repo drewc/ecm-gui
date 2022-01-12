@@ -1,0 +1,309 @@
+#+TITLE: SpreadSheets are everywhere.
+
+
+* ExcelJS Vue table: ~SpreadSheet.vue~
+
+This is where we make a spreadsheet in the browser.
+
+** RichText component
+
+There are some cells that have richtext.
+
+#+begin_src json
+{
+  "richText": [
+    {
+      "font": {
+        "size": 11,
+        "name": "Cambria",
+        "charset": 1
+      },
+      "text": "Sum of "
+    },
+    {
+      "font": {
+        "bold": true,
+        "underline": "single",
+        "size": 10,
+        "color": {
+          "argb": "FF000000"
+        },
+        "name": "Trebuchet MS",
+        "charset": 1
+      },
+      "text": "total number of days "
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 10,
+        "color": {
+          "argb": "FF000000"
+        },
+        "name": "Trebuchet MS",
+        "charset": 1
+      },
+      "text": "between the 1st notification date and 1st indemnity payment date on all claims that had a 1st notification and indemnity payment in the reporting period as at report date. \nDivide this total by total number of "
+    },
+    {
+      "font": {
+        "bold": true,
+        "underline": "single",
+        "size": 10,
+        "color": {
+          "argb": "FF000000"
+        },
+        "name": "Trebuchet MS",
+        "charset": 1
+      },
+      "text": "claims"
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 10,
+        "color": {
+          "argb": "FF000000"
+        },
+        "name": "Trebuchet MS",
+        "charset": 1
+      },
+      "text": " with a 1st notification and indemnity payment in this reporting period"
+    }
+  ]
+}
+#+end_src
+
+#+begin_src js :noweb-ref font-families
+const fontFamilies = {
+  "Cambria": "Cambria, Georgia, Palatino, Times New Roman, serif",
+  "Trebuchet MS": "Trebuchet MS,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Tahoma,sans-serif",
+  "DEFAULT": '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"'
+}
+
+const rtFontFamily = rt =>
+      fontFamilies[rt.font.name] || fontFamilies['DEFAULT']
+
+const argb2rgba = color =>
+ '#' + color.argb.slice(2).concat(color.argb.slice(0,2))
+
+const rtStyle = rt => {
+  const style = {}
+  style.fontFamily = rtFontFamily(rt)
+  if (rt.font.underline) style.textDecoration = "underline"
+  style.fontSize = '' + rt.font.size + 'pt'
+  if (rt.font.color) style.color = argb2rgba(rt.font.color)
+  if (rt.font.bold) style.fontWeight = "bold"
+  return style
+}
+
+
+#+end_src
+
+#+begin_src vue :noweb yes :tangle ./src/components/SpreadSheet/RichText.vue
+<script setup>
+
+<<font-families>>
+
+const props = defineProps({
+    richText: Object
+})
+</script>
+
+<template>
+  <span v-for="rt in richText"
+        :key="rt.text"
+        :style="rtStyle(rt)">{{rt.text}}</span>
+</template>
+
+#+end_src
+** /File/ ~./src/components/SpreadSheet.vue~
+
+#+begin_src vue :tangle ./src/components/SpreadSheet.vue
+<script setup>
+import ExcelJS from 'exceljs'
+import { ref, computed } from 'vue'
+import numfmt from "numfmt";
+
+import RichText from './SpreadSheet/RichText.vue'
+
+  // reusable function
+  const str = '"£"#,##0.00;[Red]\-"£"#,##0.00';
+  const num = 123567890.42
+  const formatter = numfmt(str);
+  const out = formatter(num)
+  console.log(out);
+
+  // ... or just
+  const output = numfmt.format(str, 0 - num);
+  console.log(output);
+
+const props = defineProps({
+    sheet: Object
+})
+
+const rows = computed(() => props.sheet.getRows(1, props.sheet.actualRowCount))
+const cells = (row) => {
+  const cs = []
+  row.eachCell({ includeEmpty: true },function(cell, colNumber) {
+    // console.log('Cell ' + colNumber + ' = ' + cell.value);
+  cs.push([colNumber, cell])
+  });
+
+ return cs;
+
+}
+
+const argb2rgba = color =>
+ '#' + color.argb.slice(2).concat(color.argb.slice(0,2))
+
+const cellStyle = cell => {
+  // console.log('num val', cell, cell.row, cell.value)
+  const style = {}
+  if (cell.value === null) { style.margin = 0; style.padding = 0 }
+  const trans = {
+    fill: (o) => {
+      if (o.pattern !== 'none') {
+        style.backgroundColor =  argb2rgba(o.fgColor)
+        // console.log('Have pattern', o, style)
+      }
+    },
+    font(f) {
+      // console.log('funt', f)
+      if (f.size) style.fontSize = '' + f.size + 'pt'
+      if (f.color) style.color=argb2rgba(f.color)
+
+      // console.log('funt', f, style)
+    },
+    border(b) {
+      if (Object.keys(b).length > 0) style.borderStyle ="solid"
+      Object.entries(b).forEach(([k,v]) => {
+       //  console.log('Brder Etnry', k ,v)
+        const start = 'border-'+k+'-'
+        Object.entries(v).forEach(([k,v]) => {
+        // console.log('Each B Enbtry', k, v)
+          if (k === "style") {
+            style[start+'width'] = v
+         // console.log('weighin', style)
+          } else if (k === 'color') {
+            style[start+k] = argb2rgba(v)
+          }
+
+        })
+      })
+      // console.log('border:', style)
+    }
+  }
+
+  Object.entries(cell.style).forEach(([k,v]) => {
+    const t = trans[k]
+     // console.log('looking for', k, 'found', t, 'have', v)
+    if (t) t(v)
+  })
+  const formatter = numfmt(cell.numFmt);
+  const numColour = isNaN(cell.value) ? false : formatter.color(cell.value)
+
+  if (numColour) style.color = numColour;
+
+  // console.log('Got style', style, 'from', cell.style)
+  return style;
+}
+
+
+const formatCell = (cell) => {
+  const v = cell.value
+  if (!isNaN(v)) return numfmt.format(cell.numFmt, v);
+  return v;
+}
+
+const isRichText = cell =>
+      cell.value !== null &&
+      typeof cell.value === "object" &&
+      cell.value.richText
+
+
+</script>
+
+<template>
+<table class="uk-table" style="border-collapse: collapse;">
+  <tbody>
+        <tr v-for="row in rows" :key="row.row">
+          <td v-for="[n,v] in cells(row)"
+              :style="cellStyle(v)"
+              :key="v.address"
+              :data-style="JSON.stringify(v.numFmt)">
+            <rich-text v-if="isRichText(v)"
+                       :rich-text="v.value.richText" />
+            <template v-else>
+              {{formatCell(v)}}
+              </template>
+                      </td>
+        </tr>
+    </tbody>
+</table>
+
+</template>
+
+#+end_src
+
+* Spreadsheet Templates
+
+The idea there is that there's a template onto which the report is placed.
+
+First we need to download the template.
+
+https://medium.com/@fakiolinho/handle-blobs-requests-with-axios-the-right-way-bb905bdb1c04
+
+#+begin_src js :tangle ./src/assets/SheetTemplate.js
+import { get } from 'axios';
+import ExcelJS from 'exceljs'
+
+
+export const downloadFile = url =>
+get(url, {
+  responseType: 'blob',
+  timeout: 30000,
+});
+
+export const downloadWorkBook = url => {
+  const workbook = new ExcelJS.Workbook()
+  return downloadFile(url).then(
+    e => e.data.arrayBuffer()).then(
+      b => workbook.xlsx.load(b))
+}
+
+export async function saveWorkBook (fileName, workbook) {
+  const xls64 = await workbook.xlsx.writeBuffer({ base64: true })
+  saveAs(
+    new Blob([xls64], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    fileName
+  )
+}
+
+export function mutateRow(row, mutation) {
+
+  mutation.forEach((m, i) => {
+    const cell = row.getCell(i)
+    if (typeof m === "object") {
+      Object.assign(cell, m)
+    } else {
+      cell.value = m
+    }
+  })
+}
+
+const all = { downloadFile,
+              downloadWorkBook,
+              saveWorkBook,
+              ExcelJS,
+              mutateRow
+            }
+
+window.ST = all
+
+export default all
+
+
+#+end_src
+
+#+RESULTS:

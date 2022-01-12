@@ -1,0 +1,73 @@
+#+TITLE: Server
+
+The GUI requires a server for certain actions. By default it runs on port
+~8988~.
+
+* Static Exec
+
+#+begin_src shell :tangle bin/ecm-server.ss :shebang #!/usr/bin/env bash
+
+function realpath()
+{
+    f=$@
+    if [ -d "$f" ]; then
+        base=""
+        dir="$f"
+    else
+        base="/$(basename "$f")"
+        dir=$(dirname "$f")
+    fi
+    dir=$(cd "$dir" && pwd)
+    echo "$dir$base"
+}
+
+_bindir=$(dirname $(realpath $0))
+
+gxi -e '(import
+        :ecm/gui/endpoints/login
+        :ecm/gui/endpoints/report/pmi
+        :ecm/gui/server/httpd
+        )'\
+            -e '(begin (ensure-ecm-httpd!) (display "ECM Gui v0.42"))'\
+            -
+#+end_src
+
+
+
+* /File/ ~server/httpd.ss~
+:PROPERTIES:
+:ID:       f2001572-534b-40c0-8995-633dfbec70db
+:END:
+
+#+begin_src scheme :tangle server/httpd.ss
+(export #t)
+
+(import :drewc/ftw :std/format)
+
+(def ecm-http-server #f)
+
+(def (ensure-ecm-httpd! address: (address "127.0.0.1") port: (port 8988))
+  (def saddress (format "~a:~a" address port))
+  (or ecm-http-server
+      (let ((s (start-ftw-http-server! saddress)))
+        (set! ecm-http-server s)
+        s)))
+
+;; (def static-root-dir (current-directory))
+
+;; (define-endpoint js-files "^/js/(.*)$" priority: 1024)
+;; (define-endpoint css-files "^/css/(.*)$" priority: 1024)
+;; (define-endpoint html-files "^/html/(.*)$" priority: 1024)
+
+;; (def (make-getter where)
+;;   (lambda (filename)
+;;     (http-response-static-file*
+;;      (path-expand (string-append where filename)
+;;                   static-root-dir))))
+
+;; (def js-files/GET (make-getter "js/"))
+;; (def css-files/GET (make-getter "css/"))
+;; (def html-files/GET (make-getter "html/"))
+
+
+#+end_src

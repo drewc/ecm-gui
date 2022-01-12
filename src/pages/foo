@@ -1,0 +1,157 @@
+<template>
+  <div class="q-pa-md">
+    <q-table
+      title="Treats"
+      :data="data"
+      :columns="columns"
+      row-key="user_id"
+      @request="onRequest"
+      :filter="filter"
+      :pagination.sync="pagination"
+      binary-state-sort
+    >
+      <!--  -->
+      <!-- :loading="loading" -->
+      <!--  -->
+      <template v-slot:top-right>
+        <q-input borderless dense debounce="300" v-model="filter" placeholder="Search">
+          <template v-slot:append>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </template>
+
+    </q-table>
+  </div>
+</template>
+<script>
+export default {
+  data () {
+    return {
+      filter: '',
+      loading: false,
+      pagination: {
+        sortBy: 'desc',
+        descending: false,
+        page: 1,
+        rowsPerPage: 3,
+        rowsNumber: 10
+      },
+      columns: [
+        {
+          name: 'desc',
+          required: true,
+          label: 'Username',
+          align: 'left',
+          field: row => row.name,
+          format: val => `${val}`,
+          sortable: true
+        },
+        { name: 'login', align: 'center', label: 'Can Login?', field: 'login', sortable: true },
+        { name: 'corpus', align: 'left', label: 'Person/Company', field: row => row.corpus.full_name, sortable: true },
+        { name: 'person_id', label: 'person_id', field: 'person_id', sortable: true },
+        { name: 'protein', label: 'Protein (g)', field: 'protein', sortable: true },
+        { name: 'sodium', label: 'Sodium (mg)', field: 'sodium', sortable: true },
+        { name: 'calcium', label: 'Calcium (%)', field: 'calcium', sortable: true, sort: (a, b) => parseInt(a, 10) - parseInt(b, 10) },
+        { name: 'iron', label: 'Iron (%)', field: 'iron', sortable: true, sort: (a, b) => parseInt(a, 10) - parseInt(b, 10) }
+      ],
+      original: [],
+      data: []
+    }
+  },
+  mounted () {
+    // get initial data from server
+    this.loadData()
+    this.data = this.original
+  },
+  methods: {
+    onRequest (props) {
+      const { page, rowsPerPage, sortBy, descending } = props.pagination
+      const filter = props.filter
+      console.log(filter)
+      function folter (row) {
+        console.log('Firtler' + row.name + ' ' + filter)
+        return row.name.includes(filter)
+      }
+      const fdata = filter
+        ? this.original.filter(row => folter(row))
+        : this.original.slice()
+
+      this.loading = true
+      // // get all rows if "All" (0) is selected
+      // const fetchCount = rowsPerPage === 0 ? this.pagination.rowsNumber : rowsPerPage
+
+      // // calculate starting row of data
+      // const startRow = (page - 1) * rowsPerPage
+      // const returnedData = this.fetchFromServer(startRow, fetchCount, filter, sortBy, descending)
+
+      // // clear out existing data and add new
+      this.data = fdata
+
+      // dont forget to update local pagination object
+      this.pagination.page = page
+      this.pagination.rowsPerPage = rowsPerPage
+      this.pagination.sortBy = sortBy
+      this.pagination.descending = descending
+
+      // ...and turn of loading indicator
+      this.loading = false
+    },
+
+    // emulate ajax call
+    // SELECT * FROM ... WHERE...LIMIT...
+    fetchFromServer (startRow, count, filter, sortBy, descending) {
+      this.loadData()
+    },
+    loadData () {
+      this.$axios.get('/json/user')
+        .then((response) => {
+          console.log(response)
+          this.original = response.data
+        })
+        .catch(() => {
+          this.$q.notify({
+            color: 'negative',
+            position: 'top',
+            message: 'Loading failed',
+            icon: 'report_problem'
+          })
+        })
+    },
+    customSort (rows, sortBy, descending) {
+      const data = [ ...rows ]
+
+      if (sortBy) {
+        data.sort((a, b) => {
+          const x = descending ? b : a
+          const y = descending ? a : b
+
+          if (sortBy === 'name') {
+            // string sort
+            return x[sortBy] > y[sortBy] ? 1 : x[sortBy] < y[sortBy] ? -1 : 0
+          }
+          else {
+            // numeric sort
+            return parseFloat(x[sortBy]) - parseFloat(y[sortBy])
+          }
+        })
+      }
+
+      return data
+    },
+    // emulate 'SELECT count(*) FROM ...WHERE...'
+    getRowsNumberCount (filter) {
+      if (!filter) {
+        return this.original.length
+      }
+      let count = 0
+      this.original.forEach((treat) => {
+        if (treat.name.includes(filter)) {
+          ++count
+        }
+      })
+      return count
+    }
+  }
+}
+</script>

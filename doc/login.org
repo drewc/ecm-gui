@@ -1,0 +1,14 @@
+
+* Login
+
+https://dev-notes.eu/2018/05/passing-data-between-vue-components/
+
+We've got a Login.vue and a MyLayout.vue. When the login is successful, we want
+to call a function in MyLayout.
+
+That's an event. We do so in ECM.js simply because that's where we started to
+combine things.
+
+
+
+

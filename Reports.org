@@ -1,0 +1,245 @@
+#+TITLE: Reports
+
+* Performance Management Information
+
+We want to create a spreadsheet from ths report. The database can speak JSON, as can the client and server.
+
+This one is not a regular spreadsheet for a query with rows that share colums.
+
+So to take care of that we use this SQL.
+
+#+begin_src sql :noweb-ref sql-pmi-report
+SELECT row_to_json(rep) FROM (SELECT "Volume of Claims" as "B2",
+       "Volume of Closed Claims" as "B3", 
+       "Volume of Re-Opened Claims" AS "B4", 
+       "Volume of New Claims" AS "B5", 
+       "Value of open claims"::numeric AS "B6",
+       "% of work referred to London?" / 100 AS "B7",
+       "Volume of files held open for recovery/subrogation" AS "B8", 
+       "% Open claims referred to UW's outside of Market 5 day SLA"
+         / 100 AS "B10", 
+       "Volume of Claims not acknowledged within Market 48 hours SLA" AS "B11", 
+       "Volume of Overdue Diary Items" AS "B12", 
+       "% of Open Claims Peer Reviewed"
+        / 100 AS "B13", 
+       "Average days from 1st notification to 1st indemnity payment" AS "B14",
+       "Average days from 1st notification to closed" AS "B15", 
+       "Average days to establish initial reserve from notice of claim" AS "B16", 
+       "Variance of final to initial reserve (as %)"
+        / 100 AS "B17", 
+       "Volume of nil reserve claims older than 6 months (as %)" AS "B18", 
+       "Response time for acknowledging new claims" AS "B20", 
+       "How many full time Claims Examiners do you have?" AS "B30" 
+FROM mi_report($1, $2, $3, $4)) rep ;
+#+end_src
+
+What that gives us is something like this.
+
+#+begin_src json
+{
+  "B2": 1435,
+  "B3": 37,
+  "B4": 7,
+  "B5": 21,
+  "B6": 11491886.42,
+  "B7": 0.1631,
+  "B8": 12,
+  "B10": 0.0175,
+  "B11": 0,
+  "B12": 7,
+  "B13": 0.114,
+  "B14": 222,
+  "B15": 334,
+  "B16": 0,
+  "B17": 0,
+  "B18": 0,
+  "B20": 0,
+  "B30": 18
+}
+#+end_src
+
+That's trivial to make into a function that does we we need.
+
+#+begin_src js :noweb-ref report2book
+const report2book = async (rep) => {
+  const wb = await downloadWorkBook('/report/pmi/template.xlsx')
+  const ws = wb.getWorksheet("US");
+  Object.entries(rep).forEach(([k,v]) => ws.getCell(k).value = v);
+  return wb;
+}
+#+end_src
+
+
+
+** ~://rpc/report/pmi~ endpoints
+
+#+begin_src scheme :tangle ./endpoints/report/pmi.ss :noweb yes
+(export #t)
+(import :drewc/ftw :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database)
+
+
+(define-json-endpoint pmi "/rpc/report/pmi")
+
+(def-auth (pmi/GET)
+  (def syns (ecm-sql-e*
+             sql-eval-query "
+SELECT json_build_object('syndicates', syna)
+ FROM (SELECT json_agg(row_to_json(syns)) AS syna
+     FROM (SELECT
+            person_name(syndicate_id) AS name,
+            syndicate_id,
+            max(effective_date) AS latest_effective,
+            count(*) AS number_of_contracts
+            FROM contract
+            WHERE syndicate_id IS NOT NULL
+           GROUP BY syndicate_id
+           ORDER BY number_of_contracts DESC,
+           latest_effective DESC, name) syns) moresyns"))
+  (respond/JSON (car syns)))
+
+(def-auth (pmi/POST)
+  (def jso (http-request-body-json*))
+  (def res
+    (let-hash jso
+      ;;(error "Hey now" .line_of_business .syndicate_id (substring .start_date 0 10))
+      (car (ecm-sql-e*
+            sql-eval-query
+            #<<EOF
+            <<sql-pmi-report>>
+EOF
+            (substring .start_date 0 10)
+            (substring .end_date 0 10) .syndicate_id
+            (and (not (void? .line_of_business))
+                 .line_of_business)))))
+  (respond/JSON res))
+#+end_src
+
+#+begin_src vue :tangle ./src/components/reports/PMI.vue :noweb yes
+<script setup>
+import UIkit from 'uikit'
+import SimpleTypeAhead from 'vue3-simple-typeahead';
+import { downloadWorkBook, saveWorkBook } from '../../assets/SheetTemplate'
+import { ref, computed } from 'vue'
+import datepicker from 'vue3-datepicker'
+import { get, post } from 'axios'
+import { onMounted } from 'vue'
+import ResultsTable from '../../components/ResultsTable.vue'
+import SpreadSheet from '../SpreadSheet.vue'
+const error = ref(false);
+
+const current_date = new Date()
+const current_month = current_date.getMonth()
+const current_year = 1900 + current_date.getYear()
+
+const start_month = current_month < 3 ?
+      current_month + 9 : current_month - 3;
+
+const start_year = current_month < 3 ? current_year - 1 : current_year;
+const start_date = ref(new Date(start_year, start_month, 1))
+const end_date = ref(new Date(current_year, current_month, 1))
+
+const syndicates = ref([]);
+const syndicate = ref();
+const lob = ref(false)
+
+get('/rpc/report/pmi').then(
+  r => syndicates.value = r.data.syndicates)
+  .catch(e => error.value = e);
+
+const fr_on = 'Filter by line of business?'
+const fr_off = 'Remove LOB filter'
+const filterLabel=ref(fr_on)
+
+onMounted(()=> {
+  UIkit.util.on('#lob', "show", function () {
+    filterLabel.value = fr_off
+  })
+
+  UIkit.util.on('#lob', "hide", function () {
+   lob.value = null;
+   filterLabel.value = fr_on
+  })
+})
+
+<<report2book>>
+
+const report = ref()
+const workbook = ref()
+const worksheet = computed(() =>
+  workbook.value ? workbook.value.getWorksheet("US") : undefined)
+const loading = ref(false)
+
+function runReport() {
+  error.value = undefined
+  loading.value = true
+  post('/rpc/report/pmi', {
+    syndicate_id: syndicate.value.syndicate_id,
+    start_date: start_date.value,
+    end_date: end_date.value,
+    line_of_business: lob.value
+  }).then(res => {
+    loading.value = false
+    report.value = res.data
+    report2book(res.data).then(wb => workbook.value = wb);
+
+
+  }).catch( e => {error.value = e ;loading.value = false})
+
+ }
+
+const saveReport =  () => {
+ saveWorkBook(workbook.value)
+}
+
+</script>
+
+<template>
+  <div class="uk-container-expand">
+ <h1 class="uk-align-center uk-text-center uk-width-expand"> Performance Management Information </h1>
+ <div class="uk-flex uk-flex-center uk-flex-wrap">
+<div class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body">
+  For:
+  <SimpleTypeAhead
+    style="width: unset"
+    placeholder="Syndicate" :items="syndicates" v-model="syndicate"
+    :min-input-length="0" :item-projection="(i) => i.name"
+    @select-item="(i) => {syndicate = i }"/>
+</div>
+<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left">
+  From: <datepicker v-model="start_date" :upperLimit="current_date"/>
+</div>
+<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left">
+  To: <datepicker v-model="end_date" :upperLimit="current_date" />
+</div>
+<div class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left">
+  <div id="lob" hidden>
+            <select class="uk-select" v-model="lob">
+                <option>Liability</option>
+                <option>Property</option>
+            </select>
+</div>
+   <div>
+    <a href="#" uk-toggle="target: #lob">{{ filterLabel }}</a>
+    </div>
+</div>
+     <div v-if="error" class="uk-alert-danger" uk-alert>
+        <a class="uk-alert-close" uk-close></a>
+        <p style="text-align:center"> {{ error }} </p>
+      </div>
+<div v-if="syndicate" class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left">
+    <button v-if="!loading" @click="runReport"
+            class="uk-button uk-button-primary" type="button">Run Report</button>
+    <div v-if="loading" uk-spinner></div>
+
+</div>
+
+
+ </div>
+   <hr>
+    <SpreadSheet v-if="workbook" :sheet="worksheet" />
+  </div>
+
+</template>
+#+end_src

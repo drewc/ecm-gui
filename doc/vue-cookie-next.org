@@ -1,0 +1,385 @@
+* vue-cookie-next
+  :PROPERTIES:
+  :CUSTOM_ID: vue-cookie-next
+  :END:
+A simple Vue 3 plugin for handling browser cookies with typescript
+support
+
+** Installation
+   :PROPERTIES:
+   :CUSTOM_ID: installation
+   :END:
+*** Browser
+    :PROPERTIES:
+    :CUSTOM_ID: browser
+    :END:
+#+begin_example
+  <html lang="en">
+    <head>
+      <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    </head>
+    <body>
+      <div id="app"></div>
+    </body>
+    <script type="module">
+      import { VueCookieNext } from 'https://unpkg.com/vue-cookie-next@1.0.0/dist/vue-cookie-next.esm-bundler.js'
+      const CookieTest = {
+        mounted() {
+          this.$cookie.setCookie('username', 'user1')
+          console.log(this.$cookie.getCookie('username'))
+        },
+      }
+      Vue.createApp(CookieTest).use(VueCookieNext).mount('#app')
+    </script>
+  </html>
+#+end_example
+
+*** Package Managers
+    :PROPERTIES:
+    :CUSTOM_ID: package-managers
+    :END:
+#+begin_example
+  npm install vue-cookie-next
+  //or
+  yarn add vue-cookie-next
+#+end_example
+
+#+begin_example
+  import { createApp } from 'vue'
+  import { VueCookieNext } from 'vue-cookie-next'
+
+  import App from 'App.vue'
+  const app = createApp(App)
+  app.use(VueCookieNext)
+  app.mount('#app')
+
+  // set default config
+  VueCookieNext.config({ expire: '7d' })
+
+  // set global cookie
+  VueCookieNext.setCookie('theme', 'default')
+  VueCookieNext.setCookie('hover-time', { expire: '1s' })
+#+end_example
+
+*** Composition API
+    :PROPERTIES:
+    :CUSTOM_ID: composition-api
+    :END:
+#+begin_example
+  import { defineComponent } from 'vue'
+  import { useCookie } from 'vue-cookie-next'
+
+  defineComponent({
+    setup() {
+      const cookie = useCookie()
+      cookie.setCookie('theme', 'dark')
+      cookie.removeCookie('hover-time')
+    },
+  });
+#+end_example
+
+** API Options
+   :PROPERTIES:
+   :CUSTOM_ID: api-options
+   :END:
+syntax format: *[this | VueCookieNext].$cookie.[method]*
+
+- Set global config
+
+#+begin_example
+  VueCookieNext.config({
+    expire: '1d',
+    path: '/',
+    domain: '',
+    secure: '',
+    sameSite: '',
+  })
+  // default: expireTimes = 1d, path = '/', domain = '', secure = '', sameSite = 'Lax'
+#+end_example
+
+- Set a cookie
+
+#+begin_example
+  this.$cookie.setCookie(keyName, value, {
+    expire: '1d',
+    path: '/',
+    domain: '',
+    secure: '',
+    sameSite: '',
+  }) //return this
+#+end_example
+
+- Get a cookie
+
+#+begin_example
+  this.$cookie.getCookie(keyName) // return value
+#+end_example
+
+- Remove a cookie
+
+#+begin_example
+  this.$cookie.removeCookie(keyName, {
+    path: '/',
+    domain: '',
+  }) // return this | false if key not found
+#+end_example
+
+- Exist a =cookie name=
+
+#+begin_example
+  this.$cookie.isCookieAvailable(keyName) // return false or true
+#+end_example
+
+- Get All =cookie name=
+
+#+begin_example
+  this.$cookie.keys() // return a array string
+#+end_example
+
+** Example Usage
+   :PROPERTIES:
+   :CUSTOM_ID: example-usage
+   :END:
+**** set global config
+     :PROPERTIES:
+     :CUSTOM_ID: set-global-config
+     :END:
+#+begin_example
+  import { VueCookieNext } from 'vue-cookie-next'
+  // 30 day after, expire
+  VueCookieNext.config({ expire: '30d' })
+
+  // set secure, only https works
+  VueCookieNext.config({ expire: '7d', secure: true })
+
+  // 2019-03-13 expire
+  VueCookieNext.config({ expire: new Date(2019, 03, 13).toUTCString() })
+
+  // 30 day after, expire, '' current path , browser default
+  VueCookieNext.config({ expire: 60 * 60 * 24 * 30 })
+#+end_example
+
+**** support json object
+     :PROPERTIES:
+     :CUSTOM_ID: support-json-object
+     :END:
+#+begin_example
+  var user = {
+    user_id: 1,
+    name: 'Ben',
+    session: '75442486-0878-440c-9db1-a7006c25a39f',
+    session_start_time: new Date(),
+  }
+
+  this.$cookie.setCookie('user', user)
+  // print user name
+  console.log(this.$cookie.getCookieCookie('user').name)
+#+end_example
+
+**** set expire times
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times
+     :END:
+*Suppose the current time is : Sat, 11 Mar 2017 12:25:57 GMT*
+
+*Following equivalence: 1 day after, expire*
+
+*Support chaining sets together*
+
+#+begin_example
+  // default expire time: 1 day
+  this.$cookie
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f')
+    // number + d , ignore case
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: '1d',
+    })
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: '1D',
+    })
+    // Base of second
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: 60 * 60 * 24,
+    })
+    // input a Date, + 1day
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: new Date(2017, 03, 12),
+    })
+    // input a date string, + 1day
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: 'Sat, 13 Mar 2017 12:25:57 GMT',
+    })
+#+end_example
+
+**** set expire times, input number type
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times-input-number-type
+     :END:
+#+begin_example
+  this.$cookie.setCookie('default_unit_second', 'input_value', { expire: 1 }) // 1 second after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 + 30,
+  }) // 1 minute 30 second after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 * 60 * 12,
+  }) // 12 hour after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 * 60 * 24 * 30,
+  }) // 1 month after, expire
+#+end_example
+
+**** set expire times - end of browser session
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times---end-of-browser-session
+     :END:
+#+begin_example
+  this.$cookie.setCookie('default_unit_second', 'input_value', { expire: 0 }) // end of session - use 0 or "0"!
+#+end_example
+
+**** set expire times , input string type
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times-input-string-type
+     :END:
+| Unit | full name |
+|------+-----------|
+| y    | year      |
+| m    | month     |
+| d    | day       |
+| h    | hour      |
+| min  | minute    |
+| s    | second    |
+
+*Unit Names Ignore Case*
+
+*not support the combination*
+
+*not support the double value*
+
+#+begin_example
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '60s',
+  }) // 60 second after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '30MIN',
+  }) // 30 minute after, expire, ignore case
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '24d',
+  }) // 24 day after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '4m',
+  }) // 4 month after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '16h',
+  }) // 16 hour after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '3y',
+  }) // 3 year after, expire
+
+  // input date string
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: new Date(2017, 3, 13).toUTCString(),
+  })
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: 'Sat, 13 Mar 2017 12:25:57 GMT ',
+  })
+#+end_example
+
+**** set expire support date
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-support-date
+     :END:
+#+begin_example
+  var date = new Date()
+  date.setDate(date.getDate() + 1)
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: date,
+  })
+#+end_example
+
+**** set never expire
+     :PROPERTIES:
+     :CUSTOM_ID: set-never-expire
+     :END:
+#+begin_example
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: Infinity,
+  }) // never expire
+  // never expire , only -1,Other negative Numbers are invalid
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', { expire: -1 })
+#+end_example
+
+**** remove cookie
+     :PROPERTIES:
+     :CUSTOM_ID: remove-cookie
+     :END:
+#+begin_example
+  this.$cookie.setCookie('token', 'value') // domain.com and *.doamin.com are readable
+  this.$cookie.removeCookie('token') // remove token of domain.com and *.doamin.com
+
+  this.$cookie.setCookie('token', value, { domain: 'domain.com' }) // only domain.com are readable
+  this.$cookie.removeCookie('token', { domain: 'domain.com' }) // remove token of domain.com
+#+end_example
+
+**** set other arguments
+     :PROPERTIES:
+     :CUSTOM_ID: set-other-arguments
+     :END:
+#+begin_example
+  // set path
+  this.$cookie.setCookie('use_path_argument', 'value', {
+    expire: '1d',
+    path: '/app',
+  })
+
+  // set domain
+  this.$cookie.setCookie('use_path_argument', 'value', { domain: 'domain.com' }) // default 1 day after,expire
+
+  // set secure
+  this.$cookie.setCookie('use_path_argument', 'value', {
+    secure: true,
+  })
+
+  // set sameSite - should be one of `None`, `Strict` or `Lax`. Read more https://web.dev/samesite-cookies-explained/
+  this.$cookie.setCookie('use_path_argument', 'value', { sameSite: 'Lax' })
+#+end_example
+
+**** other operation
+     :PROPERTIES:
+     :CUSTOM_ID: other-operation
+     :END:
+#+begin_example
+  // check a cookie exist
+  this.$cookie.isCookieAvailable("user_session")
+
+  // get a cookie
+  this.$cookie.getCookie("user_session");
+
+  // remove a cookie
+  this.$cookie.removeCookie("user_session");
+
+  // get all cookie key names, line shows
+  this.$cookie.keys().join("\n");
+
+  // remove all cookie
+  this.$cookie.keys().forEach(cookie => this.$cookie.removeCookie(cookie))
+
+  // vue-cookie-next global
+  [this | VueCookieNext].$cookie.[method]
+#+end_example
+
+** ⚠️ Warning
+   :PROPERTIES:
+   :CUSTOM_ID: warning
+   :END:
+*$cookie key names Cannot be set to
+['expires','max-age','path','domain','secure','SameSite']*
+
+** 🌸 Thanks
+   :PROPERTIES:
+   :CUSTOM_ID: thanks
+   :END:
+This project is heavily inspired by the following awesome projects.
+
+- [[https://github.com/cmp-cc/vue-cookies][cmp-cc/vue-cookies]]
+
+Thanks!

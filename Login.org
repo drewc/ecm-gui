@@ -1,0 +1,292 @@
+#+TITLE: Login: The first user interaction
+
+
+* ~Login.vue~ component
+
+** <script setup>
+
+#+begin_src js :noweb-ref Login-script-setup
+import { post, get } from 'axios'
+import { useStore } from 'vuex'
+import { ref } from 'vue'
+
+import { useCookie } from 'vue-cookie-next'
+
+const username = ref();
+const passwd = ref();
+const error = ref();
+
+const store = useStore()
+const cookie = useCookie()
+
+get('/rpc/login').then(r => { if (r.data) store.commit('login', r.data) });
+
+
+async function login (event) {
+  event.preventDefault();
+  error.value = undefined;
+  const res = await post('/rpc/login', { u: username.value, p: passwd.value })
+  const u = res.data;
+  if (!u) {
+    error.value = "Invalid Username/Password"
+  } else {
+    store.commit('login', u)
+    cookie.setCookie("ecm-login-uuid", u.uuid, { expire: 'Session' })
+  }
+}
+
+#+end_src
+
+
+** /File/ ~/pgui/src/components/PgLogin.vue~
+:PROPERTIES:
+:ID:       62831272-8ac7-4f3e-b236-6594fe897e05
+:END:
+
+#+begin_src vue :tangle "./src/components/Login.vue" :noweb yes
+<script setup>
+  <<Login-script-setup>>
+</script>
+
+<template>
+  <<login-html>>
+</template>
+
+<style scoped>
+div.login {
+	background-image: url('https://picsum.photos/640/700/?image=1044');
+	background-position: center center;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+@media screen and (min-width: 640px){
+	div.login {
+		background-image: url('https://picsum.photos/960/700/?image=1044');
+	}
+}
+@media screen and (min-width: 960px){
+	div.login {
+		background-image: url('https://picsum.photos/1200/900/?image=1044');
+	}
+}
+@media screen and (min-width: 1200px){
+	div.login {
+		background-image: url('https://picsum.photos/1600/950/?image=1044');
+	}
+}
+@media screen and (min-width: 1600px){
+	div.login {
+		background-image: url('https://picsum.photos/2000/1050/?image=1044');
+	}
+}
+
+.logo-img {
+  border: 1em solid white;
+  border-radius: 1em;
+  opacity: 0.9;
+}
+
+.uk-input .uk-input {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+.uk-input .pgui-port{
+   width: 6em;
+}
+</style>
+
+#+end_src
+
+
+** /File/ ~/html/login-to-server.html~
+:PROPERTIES:
+:ID:       f6392407-8aec-455e-8db5-21a0666cdd81
+:END:
+
+#+begin_src html :untangle "../html/login-to-server.html" :noweb-ref login-html
+<div class="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-height-viewport uk-overflow-hidden uk-light" data-uk-height-viewport>
+  <!-- overlay -->
+  <div class="uk-position-cover uk-overlay-primary"></div>
+  <!-- /overlay -->
+  <div class="uk-position-bottom-center uk-position-small uk-visible@m uk-position-z-index">
+    <span class="uk-text-small uk-text-muted">© 2022 Aufin Shatranj Inc. - <a href="mailto:me@drewc.ca">Created by DrewC</a> | Built with <a href="https://cons.io/" title="Visit Gerbil site" target="_blank" data-uk-tooltip>
+      <img src="../assets/gerbil.svg" width="20" alt="Gerbil Scheme">
+      </a></span>
+  </div>
+  <div class="uk-width-medium uk-padding-small uk-position-z-index" uk-scrollspy="cls: uk-animation-fade">
+
+    <div class="uk-text-center uk-margin">
+      <img src="../assets/logo.jpg" alt="Logo" class="logo-img">
+    </div>
+
+      <div v-if="error" class="uk-alert-danger" uk-alert>
+        <a class="uk-alert-close" uk-close></a>
+        <p style="text-align:center"> {{ error }} </p>
+      </div>
+    <!-- login -->
+    <form class="toggle-class" @submit="login">
+      <fieldset class="uk-fieldset">
+    	<div class="uk-margin-small">
+    	  <div class="uk-inline uk-width-1-1">
+    		<span class="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: user"></span>
+    		<input
+              v-model="username"
+              class="uk-input uk-border-pill" required placeholder="Username" type="text">
+    	  </div>
+    	</div>
+    	<div class="uk-margin-small">
+    	  <div class="uk-inline uk-width-1-1">
+    		<span class="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: lock"></span>
+    		<input v-model="passwd" class="uk-input uk-border-pill" required placeholder="Password" type="password">
+    	  </div>
+    	</div>
+    	<div class="uk-margin-small">
+    	  <label><input class="uk-checkbox" type="checkbox"> Keep me logged in</label>
+    	</div>
+    	<div class="uk-margin-bottom">
+    	  <button type="submit" class="uk-button uk-button-primary uk-border-pill uk-width-1-1">LOG IN</button>
+    	</div>
+      </fieldset>
+    </form>
+    <!-- /login -->
+
+    <!-- recover password -->
+    <form class="toggle-class" action="login-dark.html" hidden>
+      <div class="uk-margin-small">
+    	<div class="uk-inline uk-width-1-1">
+    	  <span class="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: mail"></span>
+    	  <input class="uk-input uk-border-pill" placeholder="E-mail" required type="text">
+    	</div>
+      </div>
+      <div class="uk-margin-bottom">
+    	<button type="submit" class="uk-button uk-button-primary uk-border-pill uk-width-1-1">SEND PASSWORD</button>
+      </div>
+    </form>
+    <!-- /recover password -->
+
+    <!-- action buttons -->
+    <div>
+      <div class="uk-text-center">
+    	<a class="uk-link-reset uk-text-small toggle-class" data-uk-toggle="target: .toggle-class ;animation: uk-animation-fade">Forgot your password?</a>
+    	<a class="uk-link-reset uk-text-small toggle-class" data-uk-toggle="target: .toggle-class ;animation: uk-animation-fade" hidden><span data-uk-icon="arrow-left"></span> Back to Login</a>
+      </div>
+    </div>
+    <!-- action buttons -->
+  </div>
+
+</div>
+#+end_src
+* ~://rpc/login~ endpoint
+
+The usage is simple.
+
+For a ~GET~ we simply return some info about the current user if there is one logged in.
+
+
+#+begin_src scheme :noweb-ref rpc-login-endpoint
+(define-json-endpoint login "/rpc/login")
+
+(def (with-try-db thunk)
+  (let givr ((again? #t))
+    (unless again? (reset-login-db))
+    (try (thunk)
+         (catch (e) (if again? (givr #f) (raise e))))))
+(def (login/POST)
+  (def jso (http-request-body-json*))
+  (def u (try (let-hash jso (with-try-db (cut login-user .u .p)))
+              (catch _ #f)))
+  (let* ((uuid u)
+         (user (and uuid (ecm-user<-uuid uuid)))
+         (name (and user (ecm-user-name user)))
+         (id (and user (ecm-user-id user)))
+         (role (and user (ecm-user-role user))))
+  (respond/JSON (and user
+                     (hash (uuid uuid)
+                      (name name)
+                      (id id)
+                      (role role))))))
+
+(def (login/GET)
+  (let* ((uuid (assget "ecm-login-uuid" (http-request-cookies*)))
+         (user (and uuid (ecm-user<-uuid uuid)))
+         (name (and user (ecm-user-name user)))
+         (id (and user (ecm-user-id user)))
+         (role (and user (ecm-user-role user))))
+  (respond/JSON (and id (hash (uuid uuid)
+                      (name name)
+                      (id id)
+                      (role role))))))
+#+end_src
+
+#+begin_src scheme :tangle ./endpoints/login.ss :noweb yes
+(export #t)
+(import :drewc/ftw :std/misc/uuid :std/sugar
+        :drewc/db/postgresql :drewc/db/dbi
+        :drewc/pg/connect :std/error)
+
+(def pg-connect-args [host: "ecm.maxwellclaims.net"
+                            user: "maxclaims"])
+
+(defvalues (login-db reset-login-db)
+  (let (db #f)
+    (let l ()
+      (def (login-db)
+        (or db
+            (begin (set! db (apply connect pg-connect-args))
+                   db)))
+      (def (reset-login-db) (set! db #f))
+      (values login-db reset-login-db))))
+
+(def (role<-username username)
+  (def un (sql-eval-query
+           (login-db) "SELECT usename FROM app_user
+            LEFT JOIN pg_shadow ON (username = usename::text)
+            WHERE username = $1" username))
+  (or (car un)
+      (car (sql-eval-query
+            (login-db) "SELECT usename FROM app_user
+             LEFT JOIN pg_shadow ON (usename = 'mu_' || app_user_id::text)
+             WHERE username = $1" username))))
+
+(def username->role role<-username)
+
+(def (authenticate-user username password)
+  (def role (role<-username username))
+  (def q "SELECT passwd = 'md5' || md5($1||$2) from pg_shadow WHERE usename = $2")
+  (car (sql-eval-query (login-db) q password role)))
+
+(defstruct ecm-user (id name role))
+
+(def (ecm-user<-username username)
+  (def id
+    (try
+     (car
+      (sql-eval-query
+       (login-db)
+       "SELECT app_user_id FROM app_user WHERE username = $1" username))
+     (catch _ #f)))
+
+  (def role (and id (role<-username username)))
+  (and role (make-ecm-user id username role)))
+
+(def default-ecm-user-table (make-hash-table))
+(def current-ecm-user-table (make-parameter default-ecm-user-table))
+
+(begin
+  (def (ecm-user<-uuid uuid)
+    (hash-get (current-ecm-user-table) uuid))
+
+  (def uuid->ecm-user ecm-user<-uuid))
+
+(def (login-user username password)
+  (def uuid (uuid->string (random-uuid)))
+  (def auth (authenticate-user username password))
+  (def u (and auth (ecm-user<-username username)))
+  (if (not u) #f
+      (begin (hash-put! (current-ecm-user-table) uuid u)
+             uuid)))
+
+<<rpc-login-endpoint>>
+
+#+end_src

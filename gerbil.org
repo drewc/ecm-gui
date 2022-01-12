@@ -1,0 +1,20 @@
+#+TITLE: Gerbil: The real meta-scheme
+
+* The Package file
+
+#+begin_src scheme :tangle gerbil.pkg
+(package: ecm/gui)
+#+end_src
+
+* The build file
+
+#+begin_src scheme :tangle build.ss :shebang #!/usr/bin/env gxi
+;; -*- Gerbil -*-
+
+(import :std/build-script)
+
+(defbuild-script
+  '("server/httpd" "endpoints/login" "auth" "database"
+    "endpoints/report/pmi"))
+
+#+end_src

@@ -1,0 +1,28 @@
+#+TITLE: Messages: ECM is social media
+
+Seriously, communication is what the entire IT industry is based on, and
+messages, though they take many forms, are the basis for a lot of management.
+
+* TODO ~.msg~ files: on Exchange, Outlook is good
+
+... for the rest of the world, outlook not so good. Since we've yet to develop
+our own ~.msg~ reader in Gerbil (soon to come!), and the file format is not
+quite simple[fn:msgff], we'll use an NPM package[fn:msgreader]. 
+
+#+begin_src shell
+yarn add @kenjiuno/msgreader
+#+end_src
+
+Now in ~ecm.js~ We'll import and export it so that ~this.$ecm.MsgReader~
+resolves to it.
+
+
+
+
+
+
+
+* Footnotes
+
+[fn:msgreader] https://github.com/HiraokaHyperTools/msgreader#readme
+[fn:msgff] http://www.fileformat.info/format/outlookmsg/

@@ -1,0 +1,45 @@
+#+TITLE: ECM Gooey! People like a nice UI
+
+
+*ECM*, AKA *"Electronic Claims Manager"*, is an Information Technology System
+that allows its users to manage claims. Most of the users are not developers,
+nor database administrators, or even users. In fact, Excel and Outlook are the
+primary two applications used.
+
+That means a User Interface is needed. This is it. 
+
+
+* Vite
+
+"We recommend starting new projects with Vite as it offers significantly better
+development experience in terms of dev server startup and HMR update performance
+" -- https://v3.vuejs.org/api/sfc-tooling.html#vite
+
+Vite
+
+#+begin_src shell
+pnpm create vite ecm-gui -- --template vue
+rsync -ac ecm-gui/ gui/
+rm -r ecm-gui
+
+cd gui
+export PATH=$PATH:$(~/bin/npm bin -g)
+~/bin/pnpm install
+~/bin/pnpm add -D autoprefixer postcss
+
+~/bin/pnpm run dev
+
+#+end_src
+
+* Endpoints
+
+
+* EMACS 
+
+#+begin_src emacs-lisp 
+  (setq js-indent-level 2)
+#+end_src
+
+#+RESULTS:
+: 2
+

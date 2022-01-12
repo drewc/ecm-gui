@@ -1,0 +1,1253 @@
+#+TITLE: GUI: A web based front end
+
+* Proxy for dev time
+
+When running vite from the command line, Vite will automatically try to resolve a config file named vite.config.js inside project root.
+ -- https://vitejs.dev/config/#config-file-resolving
+
+#+begin_src js :tangle vite.config.js
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+
+
+// https://vitejs.dev/config/
+export default defineConfig({
+    plugins: [vue()],
+    server: {
+        proxy: {
+            // string shorthand
+            '/rpc': 'http://localhost:8988'
+        }
+    }
+    // ,
+    // optimizeDeps: { exclude: ["vue-router"] }
+})
+
+#+end_src
+
+* ~src/main.js~
+
+#+begin_src js :tangle src/main.js
+import { createApp } from 'vue'
+import App from './App.vue'
+import store from './store'
+import { VueCookieNext } from 'vue-cookie-next'
+
+const app = createApp(App)
+
+app.use(store)
+app.use(VueCookieNext)
+app.mount('#app')
+#+end_src
+* ~src/App.vue~
+
+#+begin_src vue :tangle src/App.vue
+<script setup>
+import SimpleTypeAhead from 'vue3-simple-typeahead';
+import Login from './components/Login.vue'
+import HelloWorld from './components/HelloWorld.vue'
+import UIkit from 'uikit'
+import Icons from 'uikit/dist/js/uikit-icons';
+
+import { computed } from 'vue'
+import { useStore } from 'vuex'
+
+import PMI from './components/reports/PMI.vue'
+import Header from './components/Header.vue'
+
+UIkit.use(Icons);
+
+const store = useStore();
+
+const user = computed(() => store.state.user)
+
+
+</script>
+
+<template>
+  <Header/>
+  user: {{ user }}
+ <PMI v-if="user" />
+ <Login v-else />
+</template>
+<style>
+  .simple-typeahead-list {
+     max-height: 3em;
+     overflow: scroll;
+ }
+ </style>
+
+<style src="uikit/dist/css/uikit.min.css"> </style>
+<style src="vue3-simple-typeahead/dist/vue3-simple-typeahead.css"> </style>
+#+end_src
+
+* ExcelJS
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add exceljs file-saver
+#+end_src
+
+#+begin_src js
+import Excel from 'exceljs'
+import { saveAs } from 'file-saver'
+
+const workbook = new Excel.Workbook()
+
+const worksheet = workbook.addWorksheet('People')
+worksheet.columns = [
+  { header: 'Id', key: 'id', width: 10 },
+  { header: 'Name', key: 'name', width: 10 },
+  { header: 'D.O.B.', key: 'DOB', width: 30 }
+]
+worksheet.addRow([10086, 'Ken1', 'YYYY-MM-DD'])
+worksheet.addRow([10087, 'Ken2', 'YYYY-MM-DD'])
+worksheet.addRow([10088, 'Ken3', 'YYYY-MM-DD'])
+
+saveFile('fileNameXXX', workbook)
+
+async function saveFile (fileName, workbook) {
+  const xls64 = await workbook.xlsx.writeBuffer({ base64: true })
+  saveAs(
+    new Blob([xls64], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    fileName
+  )
+}
+#+end_src
+
+** ~numFmt~ : parse those strings!
+
+Excel does some strangeness.
+#+begin_src js
+// Set Column 3 to Currency Format
+ws.getColumn(3).numFmt = '"£"#,##0.00;[Red]\-"£"#,##0.00';
+#+end_src
+
+We can "fix" that.
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add numfmt
+#+end_src
+
+#+begin_src js
+  import numfmt from "numfmt";
+
+  // reusable function
+  const str = '"£"#,##0.00;[Red]\-"£"#,##0.00';
+  const num = 123567890.42
+  const formatter = numfmt(str);
+  const output = formatter(num)
+  console.log(output);
+
+  // ... or just
+  const output = numfmt.format(str, num);
+  console.log(output);
+#+end_src
+
+*** numfmt -- a spreadsheet number formatter
+  :PROPERTIES:
+  :CUSTOM_ID: numfmt-a-spreadsheet-number-formatter
+  :END:
+The numfmt library formats numbers according to a specifier string as
+defined in
+[[https://www.ecma-international.org/publications/standards/Ecma-376.htm][ECMA-376]].
+The library tries its best to emulate the inns and outs of what the
+Excel spreadsheet software does.
+
+The library is written in pure JavaScript and has no dependencies. It is
+comparable to the [[https://www.npmjs.com/package/ssf][SSF]] with some
+minor interface exceptions.
+
+****** Features
+     :PROPERTIES:
+     :CUSTOM_ID: features
+     :END:
+Why use this rather than the battle tested SSF? You may have no need to
+but numfmt is fully open source, has equivalent (if not better)
+formatting capabilities, built in international support,
+customizability, and may run about twice as fast in most cases.
+
+Adding locales is simple but those included are:
+
+- Chinese (Simplified) (=zh-CN= or =zh=)
+- Chinese (Traditional) (=zh-TW=)
+- Czech (=cs=)
+- Danish (=da=)
+- Dutch (=nl=)
+- English (=en=)
+- Finnish (=fi=)
+- French (=fr=)
+- German (=de=)
+- Greek (=el=)
+- Hungarian (=hu=)
+- Icelandic (=is=)
+- Indonesian (=id=)
+- Italian (=it=)
+- Japanese (=ja=)
+- Korean (=ko=)
+- Norwegian Bokmål (=nb=)
+- Polish (=pl=)
+- Portuguese (=pt=)
+- Russian (=ru=)
+- Slovak (=sk=)
+- Spanish (=es=)
+- Swedish (=sv=)
+- Thai (=th=)
+- Turkish (=tr=)
+
+The library is made to work with current generation spreadsheets and so
+it does not support the
+[[https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system][1904
+date system]]. It does not have built in tables for formats addressable
+by offsets, you are expected to maintain those yourself.
+
+**** Installing
+   :PROPERTIES:
+   :CUSTOM_ID: installing
+   :END:
+If you don't want to download and build numfmt yourself, the library is
+conveniently provided as an NPM package:
+
+#+begin_example
+  $ npm install numfmt
+#+end_example
+
+**** Using
+   :PROPERTIES:
+   :CUSTOM_ID: using
+   :END:
+#+begin_src js
+  import numfmt from "numfmt";
+
+  // reusable function
+  const formatter = numfmt("#,##0.00");
+  const output = formatter(1234.56)
+  console.log(output);
+
+  // ... or just
+  const output = numfmt.format("#,##0.00", 1234.56);
+  console.log(output);
+#+end_src
+
+**** Format syntax
+   :PROPERTIES:
+   :CUSTOM_ID: format-syntax
+   :END:
+Microsoft have excellent
+[[https://support.microsoft.com/en-us/office/review-guidelines-for-customizing-a-number-format-c0a1d1fa-d3f4-4018-96b7-9c9354dd99f5][documentation
+on how the format works]]. Here are some quick basics:
+
+A format pattern is divided into 4 sections:
+=<POSITIVE>;<NEGATIVE>;<ZERO>;<TEXT>=
+
+Only the first section is mandatory, the others are filled in as needed.
+The sections consist of symbols to indicate what to emit. The symbols
+are case insensitive:
+
+| Symbol                           | Result              | Description                                                                                                                                                         |
+|----------------------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| =0=                              | Digit or Zero       | =7= formatted with =00= will emit ="07"=                                                                                                                            |
+| =#=                              | Digit if needed     | =7= formatted with =##= will emit ="7"=                                                                                                                             |
+| =?=                              | Digit or Space      | =7= formatted with =??= will emit =" 7"=                                                                                                                            |
+| =.=                              | Decimal point       |                                                                                                                                                                     |
+| =,=                              | Thousands separator | =1234= formatted with =#,##0= will emit ="1,234"=. The emitted grouping character depends on the locale used.                                                       |
+| =%=                              | Percentage          | Number is multiplied by 100 before it is shown. =.7= formatted with =0%= will emit ="70%"=                                                                          |
+| =e-=, =e+=                       | Exponential format  | =12200000= formatted with =0.00E+00= will emit ="1.22E+07"=                                                                                                         |
+| =$=, =-=, =+=, =/=, =(=, =)=, == | Pass-through        | The symbol is printed as-is.                                                                                                                                        |
+| =\=                              | Escape              | Pass the the next character through as-is.                                                                                                                          |
+| =*=                              | Fill                | Repeat the next character in the format enough times to fill the column to its current width. /Like Excel's TEXT function, numFmt emits nothing when this is used./ |
+| =_=                              | Skip width          | Skip the width of the next character. /Like Excel's TEXT function, numFmt emits only a single space when this is used./                                             |
+| ="text"=                         | Pass-through        | Pass through whatever text is inside the quotation marks as-is. =7= formatted with =0 "bells"= will emit ="7 bells"=                                                |
+| =@=                              | Text value          | When value is a text, emit it as is: =foo= formatted with ="bar"@"bar"= will emit ="barfoobar"=                                                                     |
+| =yy=                             | Years               | Two digit year                                                                                                                                                      |
+| =yyyy=                           | Years               | Four digit year                                                                                                                                                     |
+| =m=                              | Month               | 1--12                                                                                                                                                               |
+| =mm=                             | Month               | 01--12                                                                                                                                                              |
+| =mmm=                            | Short month         | Month name abbreviation (Jan--Dec). Names are locale dependent.                                                                                                     |
+| =mmmm=                           | Month name          | Full month name (January--December). Names are locale dependent.                                                                                                    |
+| =mmmmm=                          | Month name          | Single letter month abbreviation (J--D). Names are locale dependent.                                                                                                |
+| =d=                              | Days                | 1--31                                                                                                                                                               |
+| =dd=                             | Days                | 01--31                                                                                                                                                              |
+| =ddd=                            | Weekdays            | Sun--Sat                                                                                                                                                            |
+| =dddd=                           | Weekdays            | Sunday--Saturday                                                                                                                                                    |
+| =h=                              | Hours               | 0--23 or 1--12                                                                                                                                                      |
+| =hh=                             | Hours               | 00--23 or 01--12                                                                                                                                                    |
+| =m=                              | Minutes             | 0--59                                                                                                                                                               |
+| =mm=                             | Minutes             | 00--59                                                                                                                                                              |
+| =s=                              | Seconds             | 0--59                                                                                                                                                               |
+| =ss=                             | Seconds             | 00--59                                                                                                                                                              |
+| =AM/PM=                          | 12h clock           | Sets clock to 12h and emits AM or PM.                                                                                                                               |
+| =A/P=                            | 12h clock           | Sets clock to 12h and emits A or P.                                                                                                                                 |
+| =[h]=                            | Hours               | Elapsed time in hours                                                                                                                                               |
+| =[m]=                            | Minutes             | Elapsed time in minutes                                                                                                                                             |
+| =[s]=                            | Seconds             | Elapsed time in seconds                                                                                                                                             |
+
+**** API Reference
+   :PROPERTIES:
+   :CUSTOM_ID: api-reference
+   :END:
+# *numfmt*(pattern[, options]])
+
+Constructs a new /formatter/ function with the specified options.
+
+Pattern must be a string according to the
+[[https://www.ecma-international.org/publications/standards/Ecma-376.htm][ECMA-376]]
+number format. Options should be an object of options. You may change
+defaults once for all instances using numfmt.options.
+
+# /formatter/(value[, options])
+
+Returns a formatted string for the argument value. If options object is
+provided then it overrides the constructor options of those options
+provided.
+
+# /formatter/.isDate()
+
+Returns a true or false depending on if the pattern is a date pattern.
+The pattern is considered a date pattern if any of its sections contain
+a date symbol (see table above). Each section is restricted to to be
+/either/ a number or date format.
+
+# /formatter/.isPercent()
+
+Returns a true or false depending on if the pattern is a percentage
+pattern. The pattern is considered a percentage pattern if any of its
+sections contain a percentage symbol (see table above).
+
+# /formatter/.isText()
+
+Returns a true or false depending on if the pattern is a text percentage
+pattern if its definition is composed of a single section that includes
+that text symbol (see table above). For example =@= or =@" USD"= are
+text patterns but =#;@= is not.
+
+# /formatter/.color(value)
+
+If the pattern defines colors this function will emit the color
+appropriate to the value. If no colors were specified this function
+returns ="black"=.
+
+#+begin_src js
+  import numfmt from "numfmt";
+
+  const formatter = numfmt("[green]#,##0;[red]-#,##0");
+  const color = formatter.color(-10)
+  console.log(color); // "red"
+#+end_src
+
+# numfmt.*format*(pattern, value[, options])
+
+Parses the format pattern and formats the value according to the
+pattern, and optionally, any options. See definition [[#numfmt][above]].
+
+# numfmt.*round*(number[, places])
+
+Return a value rounded to the specified amount of places. This is the
+rounding function used by the formatter (symmetric arithmetic rounding).
+
+# numfmt.*parseLocale*(tag)
+
+Parse a BCP 47 locale tag and emit an object of its parts. Intended for
+internal use.
+
+# numfmt.*getLocale*(tag)
+
+Used by the formatter to pull a locate from its registered locales. If
+subtag isn't available but the base language is, the base language is
+used. So if =en-CA= is not found, the formatter tries to find =en= else
+it returns a =null=.
+
+# numfmt.*addLocale*(data, tag)
+
+Register locale data for a language. The full data object looks like
+this:
+
+#+begin_src js
+  {
+    group: "\u00a0", // non-breaking space
+    decimal: ".",
+    positive: "+",
+    negative: "-",
+    percent: "%",
+    exponent: "E",
+    nan: "NaN",
+    infinity: "∞",
+    ampm: [ "AM", "PM" ],
+
+    // gregorian calendar
+    mmmm: [ "January", "February", … ],
+    mmm: [ "Jan", "Feb", … ],
+    dddd: [ "Sunday", "Monday", … ],
+    ddd: [ "Sun", "Mon", … ]
+
+    // islamic calendar
+    mmmm6: [ "Muharram", "Safar", … ],
+    mmm6: [ "Muh.", "Saf.", … ],
+  }
+#+end_src
+
+The data object does not need to be complete, it will fall back to
+defaults (mostly English) for any missing properties. Adding support for
+Faroese you would require only passing the data different from the
+defaults:
+
+#+begin_src js
+  numfmt.addLocale({
+    group: ".",
+    decimal: ",",
+    mmmm: [ "januar", "februar", … ],
+    mmm: [ "jan", "feb", … ],
+    dddd: [ "sunnudagur", "mánadagur", … ],
+    ddd: [ "sun", "mán", … ],
+  }, "fo-FO");
+#+end_src
+
+If the language tag provided has a subtag and a base language does not
+exit, the locale is register to both. In the Faroese example above both
+=fo= and =fo-FO= will be created.
+
+# numfmt.*isDate*(format)
+
+Returns a true or false depending on if the pattern is a date pattern.
+The pattern is considered a date pattern if any of its sections contain
+a date symbol (see table above). Each section is restricted to to be
+/either/ a number or date format.
+
+For compatibility reasons, this function is also available as
+=numfmt.is_date(format)=.
+
+# numfmt.*isPercent*(format)
+
+Returns a true or false depending on if the pattern is a percentage
+pattern. The pattern is considered a percentage pattern if any of its
+sections contain a percentage symbol (see table above).
+
+# numfmt.*isText*(format)
+
+Returns a true or false depending on if the pattern is a text percentage
+pattern if its definition is composed of a single section that includes
+that text symbol (see table above). For example =@= or =@" USD"= are
+text patterns but =#;@= is not.
+
+# numfmt.*options*(options)
+
+Set a default option or options for the formatter. This will affect all
+formatters unless they have overwritten options at construction time.
+Calling =numfmt.options(null)= will reset to internal defaults.
+
+#+begin_src js
+  // basic "default" formatter
+  const weekdayEN = numfmt("dddd");
+  weekdayEN(1234); // "Monday"
+
+  // setting a new default
+  numfmt.options({ locale: "is" });
+
+  // call the same formatter
+  weekdayEN(1234); // "mánudagur"
+
+  // construct a new formatter with a locale
+  weekdayFR = numfmt("dddd", { locale: "fr", });
+  weekdayFR(1234); // "lundi"
+
+  // override settings at call-time
+  weekdayEN(1234, { locale: "pl" }); // "poniedziałek"
+  weekdayFR(1234, { locale: "pl" }); // "poniedziałek"
+#+end_src
+
+# The *options*
+
+As well as allowing locale customization, numfmt behaviour can be
+controlled with a
+
+| Member          | Type      | Default    | Note                                                                                                                                                                                                                                        |
+|-----------------+-----------+------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| locale          | =string=  | =""=       | A [[http://www.rfc-editor.org/rfc/bcp/bcp47.txt][BCP 47]] string tag. Locale default is english with a =\u00a0= grouping symbol (see numfmt.addLocale).                                                                                     |
+| throws          | =boolean= | =true=     | Should the formatter throw an error if a provided pattern is invalid. If not, a formatter will be constructed which only ever outputs an error string (see /invalid/ in this table).                                                        |
+| invalid         | =string=  | ="######"= | The string emitted when no-throw mode fails to parse a pattern.                                                                                                                                                                             |
+| nbsp            | =boolean= | =true=     | By default the formatters will emit [[https://en.wikipedia.org/wiki/Non-breaking_space][non-breaking-space]] rather than a regular space when emitting the formatted number. Setting this to false will make it use regular spaces instead. |
+| leap1900        | =boolean= | =true=     | Simulate the Lotus 1-2-3 [[https://docs.microsoft.com/en-us/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year][1900 leap year bug]]. It is a requirement in the Ecma OOXML specification so it is on by default.                  |
+| dateErrorThrows | =boolean= | =false=    | Should the formatter throw an error when trying to format a date that is out of bounds?                                                                                                                                                     |
+| dateErrorNumber | =boolean= | =true=     | Should the formatter switch to a General number format when trying to format a date that is out of bounds?                                                                                                                                  |
+| overflow        | =string=  | ="######"= | The string emitted when a formatter fails to format a date that is out of bounds.                                                                                                                                                           |
+| dateSpanLarge   | =boolean= | =true=     | Extends the allowed range of dates from Excel bounds (1900--9999) to Google Sheet bounds (0--99999).                                                                                                                                        |
+| ignoreTimezone  | =boolean= | =false=    | Normally when date objects are used with the formatter, time zone is taken into account. This makes the formatter ignore the timezone offset.                                                                                               |
+* SheetJS
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add xlsx
+pnpm add sheetjs-style
+sed -i 's/\(var APOS.*\);/\1,/' ./node_modules/sheetjs-style/xlsx.js
+sed -i 's/\(_hashIndex = {};\)/var \1/' ./node_modules/sheetjs-style/xlsx.js
+sed -i 's/\(_listIndex = \[\];\)/var \1/' ./node_modules/sheetjs-style/xlsx.js
+
+pnpm rebuild sheetjs-style
+rm ./node_modules/.vite/*
+
+pnpm add xlsx-js-style
+#+end_src
+* Clusterize
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add clusterize.js
+#+end_src
+* Vue3 datepicker
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add vue3-datepicker
+#+end_src
+
+** Usage
+   :PROPERTIES:
+   :CUSTOM_ID: usage
+   :END:
+For more examples see
+https://icehaunter.github.io/vue3-datepicker/examples.html
+
+#+begin_example
+  <template>
+    <datepicker
+      v-model="selected"
+      :locale="locale"
+      :upperLimit="to"
+      :lowerLimit="from"
+      :clearable="true"
+    />
+  </template>
+#+end_example
+
+** Props and attributes
+   :PROPERTIES:
+   :CUSTOM_ID: props-and-attributes
+   :END:
+Attribute fallthrough is enabled, so any attribute you apply to the
+component will be passed down to the input.
+
+All props which accept formatting strings for dates use
+[[https://date-fns.org/docs/format][=date-fns= formatting function]]
+under the hood, so see that function's documentation for patterns.
+
+Main interaction to date selection is done via =v-model= with =Date= as
+expected type of the value passed.
+
+Full props documentation is available at
+https://icehaunter.github.io/vue3-datepicker/config.html#props
+
+| ID                   | Type                                                       | Default              | Description                                                                                                                              |
+|----------------------+------------------------------------------------------------+----------------------+------------------------------------------------------------------------------------------------------------------------------------------|
+| =upperLimit=         | =Date=                                                     |                      | Upper limit for available dates for picking                                                                                              |
+| =lowerLimit=         | =Date=                                                     |                      | Lower limit for available dates for picking                                                                                              |
+| =disabledDates=      | ={ dates: Date[] }=                                        |                      | Dates not available for picking                                                                                                          |
+| =disabledTime=       | ={ dates: Date[] }=                                        |                      | Dates not available for time picking                                                                                                     |
+| =startingView=       | ='time' \| 'day' \| 'month' \| 'year'=                     | ='day'=              | View on which the date picker should open. Can be either =year=, =month=, or =day=                                                       |
+| =minimumView=        | ='time' \| 'day' \| 'month' \| 'year'=                     | ='day'=              | If set, lower-level views won't show                                                                                                     |
+| =monthHeadingFormat= | =String=                                                   | =LLLL yyyy=          | =date-fns=-type formatting for a month view heading                                                                                      |
+| =weekdayFormat=      | =String=                                                   | =EE=                 | =date-fns=-type formatting for a line of weekdays on day view                                                                            |
+| =inputFormat=        | =String=                                                   | =yyyy-MM-dd=         | =date-fns=-type format in which the string in the input should be both parsed and displayed                                              |
+| =locale=             | [[https://date-fns.org/v2.16.1/docs/I18n#usage][=Locale=]] | =date-fns/locale/en= | [[https://date-fns.org/v2.16.1/docs/I18n#usage][=date-fns= locale object]]. Used in string formatting (see default =monthHeadingFormat=) |
+| =disabled=           | =Boolean=                                                  | =false=              | Disables datepicker and prevents it's opening                                                                                            |
+| =typeable=           | =Boolean=                                                  | =false=              | Allows user to input date manually                                                                                                       |
+| =weekStartsOn=       | =Number=                                                   | 1                    | Day on which the week should start. Number from 0 to 6, where 0 is Sunday and 6 is Saturday. Week starts with a Monday (1) by default    |
+| =clearable=          | =Boolean=                                                  | =false=              | Allows clearing the selected date and setting the value to =null=                                                                        |
+
+** Compatibility
+   :PROPERTIES:
+   :CUSTOM_ID: compatibility
+   :END:
+Package is transpiled and should be usable for everyone with ES6 and
+above, but the styling of the datepicker itself uses CSS Grid and CSS
+variables.
+
+** Example
+   :PROPERTIES:
+   :CUSTOM_ID: example
+   :END:
+#+begin_example
+  <template>
+    <datepicker v-model="picked" />
+  </template>
+
+
+  <script>
+  import Datepicker from '../src/datepicker/Datepicker.vue'
+  components: {
+    Datepicker
+  },
+  data(): {
+    return {
+      picked: new Date();
+    }
+  }
+  </script>
+#+end_example
+
+* Vue Simple Typeahead
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add vue3-simple-typeahead
+#+end_src
+
+** Add installed component to your app
+   :PROPERTIES:
+   :CUSTOM_ID: add-installed-component-to-your-app
+   :END:
+Import the vue3-simple-typeahead component and register it globally in
+your Vue app. Import the CSS as well if you wish to use the default
+styling.
+
+#+begin_src js
+  import { createApp } from 'vue';
+  import App from './App.vue';
+  import SimpleTypeahead from 'vue3-simple-typeahead';
+  import 'vue3-simple-typeahead/dist/vue3-simple-typeahead.css'; //Optional default CSS
+
+  let app = createApp(App);
+  app.use(SimpleTypeahead);
+  app.mount('#app');
+#+end_src
+
+You can also import vue3-simple-typeahead locally in your component if
+you prefer.
+
+#+begin_src js
+  import SimpleTypeahead from 'vue3-simple-typeahead'
+  import 'vue3-simple-typeahead/dist/vue3-simple-typeahead.css' //Optional default CSS
+
+  export default {
+    name: 'my-vue-component',
+    ...
+    components: {
+      SimpleTypeahead
+    }
+    ...
+  }
+#+end_src
+
+
+** Usage
+   :PROPERTIES:
+   :CUSTOM_ID: usage
+   :END:
+Use the component on your own app components
+
+#+begin_example
+  <vue3-simple-typeahead
+      id="typeahead_id"
+      placeholder="Start writing..."
+      :items="['One','Two','Three',...]"
+      :minInputLength="1"
+      :itemProjection="itemProjectionFunction"
+      @selectItem="selectItemEventHandler"
+      @onInput="onInputEventHandler"
+      @onFocus="onFocusEventHandler"
+      @onBlur="onBlurEventHandler"
+  >
+  </vue3-simple-typeahead>
+#+end_example
+
+With custom slots template
+
+#+begin_example
+  <vue3-simple-typeahead
+      id="typeahead_id"
+      placeholder="Start writing..."
+      :items="['One','Two','Three',...]"
+      :minInputLength="1"
+      :itemProjection="itemProjectionFunction"
+      @selectItem="selectItemEventHandler"
+      @onInput="onInputEventHandler"
+      @onFocus="onFocusEventHandler"
+      @onBlur="onBlurEventHandler"
+  >
+      <template #list-header>
+          LIST HEADER
+      </template>
+      <template #list-item-text="slot"><span v-html="slot.boldMatchText(slot.itemProjection(slot.item))"></span></template>
+      <template #list-footer>
+          LIST FOOTER
+      </template>
+  </vue3-simple-typeahead>
+#+end_example
+
+*** User interaction
+    :PROPERTIES:
+    :CUSTOM_ID: user-interaction
+    :END:
+When the user types on the typeahead input and the minimum input length
+is meeted a suggestion list appears below the input with the items that
+match the user input. You can continue to type further to filter the
+selection, but you could use keyboard or mouse input to make your
+selection.abnf
+
+When the suggestion list show up, you can continue to type to filter the
+selection or you use the =Arrow Up=↑ or =Arrow Down=↓ keys to navigate
+the list of suggestions. When you have selected the desired element
+press Enter or TAB to select the current element.
+
+| Control | Effect                                                             |
+|---------+--------------------------------------------------------------------|
+| ↑       | Navigate up on the suggestion list, selecting the previous element |
+| ↓       | Navigate down on the suggestion list, selecting the next element   |
+| Enter   | Choose the current element selection                               |
+| TAB     | Choose the current element selection                               |
+
+You can use the mouse instead, simply hover you cursor over the desire
+element and click on it.
+
+#+caption: User controls
+[[file:vue3-simple-typeahead.gif]]
+
+*** Props
+    :PROPERTIES:
+    :CUSTOM_ID: props
+    :END:
+| Prop                                  | Type             | Default                    | Description                                                                             |
+|---------------------------------------+------------------+----------------------------+-----------------------------------------------------------------------------------------|
+| [[#id][=id=]]                         | String           | Random id generation       | The id for the input control. Can be useful to link with a =label for=""=               |
+| [[#placeholder][=placeholder=]]       | String           | =''=                       | Placeholder text for the input                                                          |
+| [[#items][=items=]]                   | Array (Required) |                            | List of objects or strings with the elements for suggestions                            |
+| [[#defaultItem][=defaultItem=]]       | Any              |                            | Default item to be selected                                                             |
+| [[#minInputLength][=minInputLength=]] | Number           | 2                          | Minimum input length for the suggestion length to appear, the prop value has to be >= 0 |
+| [[#itemProjection][=itemProjection=]] | Function: String | =(item) => {return item;}= | Projection function to map the items to a string value for search and display           |
+
+/Remember you can always use lower-kebap-case for camelCase props like
+=min-input-length=/
+
+*** Events
+    :PROPERTIES:
+    :CUSTOM_ID: events
+    :END:
+| Event                         | Signature                                                        | Description                                                                                         |
+|-------------------------------+------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------|
+| [[#selectItem][=selectItem=]] | =function (item: String): void=                                  | Emitted when the user selects an item from the suggestion list                                      |
+| [[#onInput][=onInput=]]       | =function (event: Object { input: String, items: Array }): void= | Emitted when the user types anything                                                                |
+| [[#onFocus][=onFocus=]]       | =function (event: Object { input: String, items: Array }): void= | Emitted when the input control get the focus                                                        |
+| [[#onBlur][=onBlur=]]         | =function (event: Object { input: String, items: Array }): void= | Emitted when the input control lost the focus [When the user select an item, the focus is lost too] |
+
+*** Slots
+    :PROPERTIES:
+    :CUSTOM_ID: slots
+    :END:
+| Slot                                   | Parent                                  | Props                                     | Description                                                     |
+|----------------------------------------+-----------------------------------------+-------------------------------------------+-----------------------------------------------------------------|
+| [[#list-header][=#list-header=]]       | =div.simple-typeahead-list-header=      |                                           | Slot to be show at top of the suggestion list                   |
+| [[#list-item-text][=#list-item-text=]] | =span.simple-typeahead-list-item-text'= | =item=, =itemProjection=, =boldMatchText= | Slot to customize the text of every item in the suggestion list |
+| [[#list-footer][=#list-footer=]]       | =div.simple-typeahead-list-footer=      |                                           | Slot to be show at bottom of the suggestion list                |
+
+**** Slot =#list-item-text= props
+     :PROPERTIES:
+     :CUSTOM_ID: slot-list-item-text-props
+     :END:
+| Prop                                  | Type             | Description                                                                                                   |
+|---------------------------------------+------------------+---------------------------------------------------------------------------------------------------------------|
+| [[#item][=item=]]                     | String or Object | The item of the items array                                                                                   |
+| [[#itemProjection][=itemProjection=]] | function         | Use the item projection function provided as prop to the =vue3-simple-typeahead= element                      |
+| [[#boldMatchText][=boldMatchText=]]   | function         | A function that receives a string and add strong tags to the parts of the text matched by the search criteria |
+
+*** Styling
+    :PROPERTIES:
+    :CUSTOM_ID: styling
+    :END:
+Overwrite styles when using the default css included or add custom
+styles basing your rules on this structure.
+
+#+begin_example
+  div#{:id}_wrapper.simple-typeahead
+      input#{:id}.simple-typeahead-input
+      div.simple-typeahead-list
+          .simple-typeahead-list-header
+          .simple-typeahead-list-item &.simple-typeahead-list-item-active
+              .simple-typeahead-list-item-text
+          .simple-typeahead-list-footer
+#+end_example
+* UI Kit
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add uikit
+#+end_src
+https://github.com/zzseba78/Kick-Off
+
+* Vue Cookie Next
+  :PROPERTIES:
+  :CUSTOM_ID: vue-cookie-next
+  :END:
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add vue-cookie-next
+#+end_src
+
+
+A simple Vue 3 plugin for handling browser cookies with typescript
+support
+  <div class="uk-margin">
+            <select class="uk-select">
+                <option>Option 01</option>
+                <option>Option 02</option>
+            </select>
+        </div  <div class="uk-margin">
+            <select class="uk-select">
+                <option>Option 01</option>
+                <option>Option 02</option>
+            </select>
+        </div>>
+#+begin_example
+  import { createApp } from 'vue'
+  import { VueCookieNext } from 'vue-cookie-next'
+
+  import App from 'App.vue'
+  const app = createApp(App)
+  app.use(VueCookieNext)
+  app.mount('#app')
+
+  // set default config
+  VueCookieNext.config({ expire: '7d' })
+
+  // set global cookie
+  VueCookieNext.setCookie('theme', 'default')
+  VueCookieNext.setCookie('hover-time', { expire: '1s' })
+#+end_example
+
+** Composition API
+    :PROPERTIES:
+    :CUSTOM_ID: composition-api
+    :END:
+#+begin_example
+  import { defineComponent } from 'vue'
+  import { useCookie } from 'vue-cookie-next'
+
+  defineComponent({
+    setup() {
+      const cookie = useCookie()
+      cookie.setCookie('theme', 'dark')
+      cookie.removeCookie('hover-time')
+    },
+  });
+#+end_example
+
+** API Options
+   :PROPERTIES:
+   :CUSTOM_ID: api-options
+   :END:
+syntax format: *[this | VueCookieNext].$cookie.[method]*
+
+- Set global config
+
+#+begin_example
+  VueCookieNext.config({
+    expire: '1d',
+    path: '/',
+    domain: '',
+    secure: '',
+    sameSite: '',
+  })
+  // default: expireTimes = 1d, path = '/', domain = '', secure = '', sameSite = 'Lax'
+#+end_example
+
+- Set a cookie
+
+#+begin_example
+  this.$cookie.setCookie(keyName, value, {
+    expire: '1d',
+    path: '/',
+    domain: '',
+    secure: '',
+    sameSite: '',
+  }) //return this
+#+end_example
+
+- Get a cookie
+
+#+begin_example
+  this.$cookie.getCookie(keyName) // return value
+#+end_example
+
+- Remove a cookie
+
+#+begin_example
+  this.$cookie.removeCookie(keyName, {
+    path: '/',
+    domain: '',
+  }) // return this | false if key not found
+#+end_example
+
+- Exist a =cookie name=
+
+#+begin_example
+  this.$cookie.isCookieAvailable(keyName) // return false or true
+#+end_example
+
+- Get All =cookie name=
+
+#+begin_example
+  this.$cookie.keys() // return a array string
+#+end_example
+
+** Example Usage
+   :PROPERTIES:
+   :CUSTOM_ID: example-usage
+   :END:
+**** set global config
+     :PROPERTIES:
+     :CUSTOM_ID: set-global-config
+     :END:
+#+begin_example
+  import { VueCookieNext } from 'vue-cookie-next'
+  // 30 day after, expire
+  VueCookieNext.config({ expire: '30d' })
+
+  // set secure, only https works
+  VueCookieNext.config({ expire: '7d', secure: true })
+
+  // 2019-03-13 expire
+  VueCookieNext.config({ expire: new Date(2019, 03, 13).toUTCString() })
+
+  // 30 day after, expire, '' current path , browser default
+  VueCookieNext.config({ expire: 60 * 60 * 24 * 30 })
+#+end_example
+
+**** support json object
+     :PROPERTIES:
+     :CUSTOM_ID: support-json-object
+     :END:
+#+begin_example
+  var user = {
+    user_id: 1,
+    name: 'Ben',
+    session: '75442486-0878-440c-9db1-a7006c25a39f',
+    session_start_time: new Date(),
+  }
+
+  this.$cookie.setCookie('user', user)
+  // print user name
+  console.log(this.$cookie.getCookieCookie('user').name)
+#+end_example
+
+**** set expire times
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times
+     :END:
+*Suppose the current time is : Sat, 11 Mar 2017 12:25:57 GMT*
+
+*Following equivalence: 1 day after, expire*
+
+*Support chaining sets together*
+
+#+begin_example
+  // default expire time: 1 day
+  this.$cookie
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f')
+    // number + d , ignore case
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: '1d',
+    })
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: '1D',
+    })
+    // Base of second
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: 60 * 60 * 24,
+    })
+    // input a Date, + 1day
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: new Date(2017, 03, 12),
+    })
+    // input a date string, + 1day
+    .setCookie('user_session', '75442486-0878-440c-9db1-a7006c25a39f', {
+      expire: 'Sat, 13 Mar 2017 12:25:57 GMT',
+    })
+#+end_example
+
+**** set expire times, input number type
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times-input-number-type
+     :END:
+#+begin_example
+  this.$cookie.setCookie('default_unit_second', 'input_value', { expire: 1 }) // 1 second after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 + 30,
+  }) // 1 minute 30 second after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 * 60 * 12,
+  }) // 12 hour after, expire
+  this.$cookie.setCookie('default_unit_second', 'input_value', {
+    expire: 60 * 60 * 24 * 30,
+  }) // 1 month after, expire
+#+end_example
+
+**** set expire times - end of browser session
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times---end-of-browser-session
+     :END:
+#+begin_example
+  this.$cookie.setCookie('default_unit_second', 'input_value', { expire: 0 }) // end of session - use 0 or "0"!
+#+end_example
+
+**** set expire times , input string type
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-times-input-string-type
+     :END:
+| Unit | full name |
+|------+-----------|
+| y    | year      |
+| m    | month     |
+| d    | day       |
+| h    | hour      |
+| min  | minute    |
+| s    | second    |
+
+*Unit Names Ignore Case*
+
+*not support the combination*
+
+*not support the double value*
+
+#+begin_example
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '60s',
+  }) // 60 second after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '30MIN',
+  }) // 30 minute after, expire, ignore case
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '24d',
+  }) // 24 day after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '4m',
+  }) // 4 month after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '16h',
+  }) // 16 hour after, expire
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: '3y',
+  }) // 3 year after, expire
+
+  // input date string
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: new Date(2017, 3, 13).toUTCString(),
+  })
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: 'Sat, 13 Mar 2017 12:25:57 GMT ',
+  })
+#+end_example
+
+**** set expire support date
+     :PROPERTIES:
+     :CUSTOM_ID: set-expire-support-date
+     :END:
+#+begin_example
+  var date = new Date()
+  date.setDate(date.getDate() + 1)
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: date,
+  })
+#+end_example
+
+**** set never expire
+     :PROPERTIES:
+     :CUSTOM_ID: set-never-expire
+     :END:
+#+begin_example
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', {
+    expire: Infinity,
+  }) // never expire
+  // never expire , only -1,Other negative Numbers are invalid
+  this.$cookie.setCookie('token', 'GH1.1.1689020474.1484362313', { expire: -1 })
+#+end_example
+
+**** remove cookie
+     :PROPERTIES:
+     :CUSTOM_ID: remove-cookie
+     :END:
+#+begin_example
+  this.$cookie.setCookie('token', 'value') // domain.com and *.doamin.com are readable
+  this.$cookie.removeCookie('token') // remove token of domain.com and *.doamin.com
+
+  this.$cookie.setCookie('token', value, { domain: 'domain.com' }) // only domain.com are readable
+  this.$cookie.removeCookie('token', { domain: 'domain.com' }) // remove token of domain.com
+#+end_example
+
+**** set other arguments
+     :PROPERTIES:
+     :CUSTOM_ID: set-other-arguments
+     :END:
+#+begin_example
+  // set path
+  this.$cookie.setCookie('use_path_argument', 'value', {
+    expire: '1d',
+    path: '/app',
+  })
+
+  // set domain
+  this.$cookie.setCookie('use_path_argument', 'value', { domain: 'domain.com' }) // default 1 day after,expire
+
+  // set secure
+  this.$cookie.setCookie('use_path_argument', 'value', {
+    secure: true,
+  })
+
+  // set sameSite - should be one of `None`, `Strict` or `Lax`. Read more https://web.dev/samesite-cookies-explained/
+  this.$cookie.setCookie('use_path_argument', 'value', { sameSite: 'Lax' })
+#+end_example
+
+**** other operation
+     :PROPERTIES:
+     :CUSTOM_ID: other-operation
+     :END:
+#+begin_example
+  // check a cookie exist
+  this.$cookie.isCookieAvailable("user_session")
+
+  // get a cookie
+  this.$cookie.getCookie("user_session");
+
+  // remove a cookie
+  this.$cookie.removeCookie("user_session");
+
+  // get all cookie key names, line shows
+  this.$cookie.keys().join("\n");
+
+  // remove all cookie
+  this.$cookie.keys().forEach(cookie => this.$cookie.removeCookie(cookie))
+
+  // vue-cookie-next global
+  [this | VueCookieNext].$cookie.[method]
+#+end_example
+
+** ⚠️ Warning
+   :PROPERTIES:
+   :CUSTOM_ID: warning
+   :END:
+*$cookie key names Cannot be set to
+['expires','max-age','path','domain','secure','SameSite']*
+
+** 🌸 Thanks
+   :PROPERTIES:
+   :CUSTOM_ID: thanks
+   :END:
+This project is heavily inspired by the following awesome projects.
+
+- [[https://github.com/cmp-cc/vue-cookies][cmp-cc/vue-cookies]]
+
+Thanks!
+
+* Axios
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add axios
+#+end_src
+* Vuex
+
+Managing global state has become something I'd like to plan in advance and use
+as specifed.
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add vuex@next
+#+end_src
+
+#+begin_src js :tangle src/store/index.js :mkdirp t
+import { createStore } from 'vuex'
+
+// Create a new store instance.
+export default createStore({
+  state () {
+    return {
+      user: false
+    }
+  },
+  mutations: {
+    login (state, user) {
+      state.user = user
+    }
+  }
+})
+#+end_src
+
+** Composition API
+  :PROPERTIES:
+  :CUSTOM_ID: composition-api
+  :tabindex: -1
+  :END:
+
+To access the store within the ~setup~ hook, you can call the ~useStore~
+function. This is the equivalent of retrieving ~this.$store~ within a
+component using the Option API.
+
+#+begin_example
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+    }
+  }
+#+end_example
+
+*** Accessing State and Getters
+   :PROPERTIES:
+   :CUSTOM_ID: accessing-state-and-getters
+   :tabindex: -1
+   :END:
+In order to access state and getters, you will want to create ~computed~
+references to retain reactivity. This is the equivalent of creating
+computed properties using the Option API.
+
+#+begin_example
+  import { computed } from 'vue'
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+
+      return {
+        // access a state in computed function
+        count: computed(() => store.state.count),
+
+        // access a getter in computed function
+        double: computed(() => store.getters.double)
+      }
+    }
+  }
+#+end_example
+
+*** Accessing Mutations and Actions
+[[#accessing-mutations-and-actions][#]]
+   :PROPERTIES:
+   :CUSTOM_ID: accessing-mutations-and-actions
+   :tabindex: -1
+   :END:
+When accessing mutations and actions, you can simply provide the
+~commit~ and ~dispatch~ method inside the ~setup~ hook.
+
+#+begin_example
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+
+      return {
+        // access a mutation
+        increment: () => store.commit('increment'),
+
+        // access an action
+        asyncIncrement: () => store.dispatch('asyncIncrement')
+      }
+    }
+  }
+#+end_example
+
+*** Examples
+   :PROPERTIES:
+   :CUSTOM_ID: examples
+   :tabindex: -1
+   :END:
+Check out the [[https://github.com/vuejs/vuex/tree/4.0/examples/composition][Composition API example]] to see example applications utilizing Vuex
+and Vue's Composition API.
+

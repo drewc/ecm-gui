@@ -1,0 +1,42 @@
+#+TITLE: Authorization
+
+Here's the deal. Any user that has [[file:Login.org][Logged In]] is authorized on that device.
+
+ The browser has a cookie named ~ecm-login-uuid~. It has a value.
+
+ #+begin_src scheme :tangle auth.ss
+(export #t ecm-user ecm-user-role)
+(import :drewc/ftw :std/misc/uuid :std/sugar
+        :drewc/db/postgresql :drewc/db/dbi
+        :drewc/pg/connect :std/error :ecm/gui/endpoints/login)
+
+(def current-auth-user (make-parameter #f))
+
+(defstruct (auth-error <error>) ())
+(def (raise-auth-error where what . irritants)
+  (raise (make-auth-error what irritants where)))
+
+(def (call-with-ecm-login-user fn . args)
+  (let* ((uuid (assget "ecm-login-uuid"
+                       (try (http-request-cookies*)
+                            (catch _ []))))
+         (user (and uuid (ecm-user<-uuid uuid))))
+    (cond ((not uuid)
+           (raise-auth-error 'ecm-login-user
+                             "Login Cookie does not exist"))
+          ((not user)
+           (raise-auth-error 'ecm-login-user
+                             "UUID does not have a user"
+                             uuid))
+          (else (apply fn user args)))))
+
+(def (with-current-auth-user fn . args)
+  (call-with-ecm-login-user
+   (lambda (user) (parameterize ((current-auth-user user))
+               (apply fn args)))))
+
+(defsyntax (def-auth stx)
+  (syntax-case stx ()
+    ((macro (name args ...) body ...)
+     #'(def (name args ...) (with-current-auth-user (cut begin body ...))))))
+ #+end_src

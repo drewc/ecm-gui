@@ -1,0 +1,82 @@
+#+title: Composition API | Vuex
+* Composition API
+  :PROPERTIES:
+  :CUSTOM_ID: composition-api
+  :tabindex: -1
+  :END:
+To access the store within the =setup= hook, you can call the =useStore=
+function. This is the equivalent of retrieving =this.$store= within a
+component using the Option API.
+
+#+begin_example
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+    }
+  }
+#+end_example
+
+** Accessing State and Getters
+   :PROPERTIES:
+   :CUSTOM_ID: accessing-state-and-getters
+   :tabindex: -1
+   :END:
+In order to access state and getters, you will want to create =computed=
+references to retain reactivity. This is the equivalent of creating
+computed properties using the Option API.
+
+#+begin_example
+  import { computed } from 'vue'
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+
+      return {
+        // access a state in computed function
+        count: computed(() => store.state.count),
+
+        // access a getter in computed function
+        double: computed(() => store.getters.double)
+      }
+    }
+  }
+#+end_example
+
+** Accessing Mutations and Actions
+[[#accessing-mutations-and-actions][#]]
+   :PROPERTIES:
+   :CUSTOM_ID: accessing-mutations-and-actions
+   :tabindex: -1
+   :END:
+When accessing mutations and actions, you can simply provide the
+=commit= and =dispatch= method inside the =setup= hook.
+
+#+begin_example
+  import { useStore } from 'vuex'
+
+  export default {
+    setup () {
+      const store = useStore()
+
+      return {
+        // access a mutation
+        increment: () => store.commit('increment'),
+
+        // access an action
+        asyncIncrement: () => store.dispatch('asyncIncrement')
+      }
+    }
+  }
+#+end_example
+
+** Examples
+   :PROPERTIES:
+   :CUSTOM_ID: examples
+   :tabindex: -1
+   :END:
+Check out the [[https://github.com/vuejs/vuex/tree/4.0/examples/composition][Composition API example]] to see example applications utilizing Vuex
+and Vue's Composition API.
