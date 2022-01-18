@@ -1,15 +1,28 @@
 (export #t)
 
-(import :drewc/ftw :std/format)
+(import :drewc/ftw :std/format ../conf :std/srfi/13)
 
 (def ecm-http-server #f)
 
-(def (ensure-ecm-httpd! address: (address "127.0.0.1") port: (port 8988))
+(def (ensure-ecm-httpd! address: (address "0.0.0.0") port: (port 8988))
   (def saddress (format "~a:~a" address port))
   (or ecm-http-server
       (let ((s (start-ftw-http-server! saddress)))
         (set! ecm-http-server s)
         s)))
+
+(def (match-file req)
+  (def fn (string-trim (http-request-path req) #\/))
+  (when (string= fn "") (set! fn "index.html"))
+  (def wwwroot (conf-ref 'wwwroot))
+  (def filename (path-expand fn wwwroot))
+  (displayln "Searchgn for " filename)
+  (and (file-exists? filename)
+       [filename]))
+
+(define-endpoint client-files match-file priority: 50)
+(def client-files/GET (cut http-response-static-file* <>))
+
 
 ;; (def static-root-dir (current-directory))
 

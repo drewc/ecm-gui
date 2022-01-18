@@ -44,9 +44,11 @@
 
 (def (build-lib)
 (defbuild-script
-  '("server/httpd" "endpoints/login" "auth" "database"
-    "endpoints/report/pmi" "ecm-gui")
-    verbose: 10
+  '("server/httpd" "endpoints/login" "auth" "conf" "database"
+   "endpoints/report/pmi" "ecm-gui")
+  
+  ;'("test-dep" "test-uep" "test-jep" "endpoints/report/pmi")
+    verbose: 1
     ;bindir: srcdir
     ; libdir: srcdir
     static: #t)
@@ -54,15 +56,19 @@
 
 (def (build-static)
   (defbuild-script
-    '((static-exe: "ecm-gui"))
+    '((static-exe: "ecm-gui" #;"-verbose" "-cc-options" "-v"))
     static: #t
-    ;bindir: srcdir
-    ; libdir: srcdir
-    verbose: 10)
-    (main)
-  ;(display (gx#current-expander-module-library-path))
- ;(g-compile-static-exe "ecm-gui")
-)
+    bindir: (path-expand "bin/" srcdir)
+    optimize: #t
+    debug: #f
+                                        ; libdir: srcdir
+    build-deps: "build-deps-bin" ; importantly, pick a file that differs from above
+    ;verbose: 10
+    )
+  (main)
+ ;;(g-compile-static-exe "ecm-gui")
+                                        ;(display (gx#current-expander-module-library-path))
+  )
 
 (def (main . args) (build-lib) (build-static)
   )

@@ -1,8 +1,9 @@
 (export #t)
-(import :drewc/ftw :std/misc/uuid :std/sugar
+(import :drewc/ftw
+        :std/misc/uuid :std/sugar
         :drewc/db/postgresql :drewc/db/dbi
         :drewc/pg/connect :std/error)
-
+(declare (not optimize-dead-definitions))
 (def pg-connect-args [host: "ecm.maxwellclaims.net"
                             user: "maxclaims"])
 

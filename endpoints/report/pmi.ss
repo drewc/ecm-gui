@@ -1,7 +1,10 @@
 (export #t)
-(import :drewc/ftw :std/sugar
+(import :drewc/ftw
+        :std/sugar
         :drewc/db/dbi :std/srfi/13
-        :ecm/gui/auth :ecm/gui/database)
+        :ecm/gui/auth :ecm/gui/database
+        )
+(declare (not optimize-dead-definitions))
 
 
 (define-json-endpoint pmi "/rpc/report/pmi")

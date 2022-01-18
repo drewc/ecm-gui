@@ -22,7 +22,6 @@ const user = computed(() => store.state.user)
 
 <template>
   <Header/>
-  user: {{ user }}
  <PMI v-if="user" />
  <Login v-else />
 </template>

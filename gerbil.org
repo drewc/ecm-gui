@@ -1,5 +1,51 @@
 #+TITLE: Gerbil: The real meta-scheme
 
+#+begin_src scheme :tangle foo.ss
+(export foo)
+(defsyntax (foo stx)
+  (syntax-case stx ()
+    ((macro name id)
+     #'(module name (export id) (def id 1)))
+  ((macro id)
+   (with-syntax ((n (datum->syntax #'macro 'bar)))
+     #'(module n (export id) (def id 1))))))
+#+end_src
+
+#+begin_src scheme :tangle bar.ss
+(import ./foo)
+(foo baz)
+#+end_src
+
+
+#+begin_src scheme :tangle test-dep.ss
+(export #t)
+(defsyntax (define-endpoint stx)
+  (syntax-case stx ()
+  ((macro id)
+   (with-syntax ((n (datum->syntax #'macro 'bar)))
+     #'(module n (export id) (def id 1))))))
+#+end_src
+#+begin_src scheme :tangle test-jep.ss
+(export #t)
+(import ./test-dep)
+(defsyntax (define-json-endpoint stx)
+  (syntax-case stx ()
+   ((macro id) #'(begin (define-endpoint name )))))
+#+end_src
+#+begin_src scheme :tangle test-uep.ss
+(import ./test-jep)
+(define-json-endpoint foo )
+#+end_src
+#+begin_src scheme :tangle ./test-build.ss :shebang #!/usr/bin/env gxi
+(import :std/build-script)
+(defbuild-script
+  '("test-dep" "test-uep" "test-jep")
+    verbose: 10
+    static: #t)
+#+end_src
+
+
+
 * The Package file
 
 #+begin_src scheme :tangle gerbil.pkg
@@ -54,9 +100,11 @@
 
 (def (build-lib)
 (defbuild-script
-  '("server/httpd" "endpoints/login" "auth" "database"
-    "endpoints/report/pmi" "ecm-gui")
-    verbose: 10
+  '("server/httpd" "endpoints/login" "auth" "conf" "database"
+   "endpoints/report/pmi" "ecm-gui")
+  
+  ;'("test-dep" "test-uep" "test-jep" "endpoints/report/pmi")
+    verbose: 1
     ;bindir: srcdir
     ; libdir: srcdir
     static: #t)
@@ -64,15 +112,19 @@
 
 (def (build-static)
   (defbuild-script
-    '((static-exe: "ecm-gui"))
+    '((static-exe: "ecm-gui" #;"-verbose" "-cc-options" "-v"))
     static: #t
-    ;bindir: srcdir
-    ; libdir: srcdir
-    verbose: 10)
-    (main)
-  ;(display (gx#current-expander-module-library-path))
- ;(g-compile-static-exe "ecm-gui")
-)
+    bindir: (path-expand "bin/" srcdir)
+    optimize: #t
+    debug: #f
+                                        ; libdir: srcdir
+    build-deps: "build-deps-bin" ; importantly, pick a file that differs from above
+    ;verbose: 10
+    )
+  (main)
+ ;;(g-compile-static-exe "ecm-gui")
+                                        ;(display (gx#current-expander-module-library-path))
+  )
 
 (def (main . args) (build-lib) (build-static)
   )

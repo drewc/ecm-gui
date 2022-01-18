@@ -6,8 +6,42 @@ that allows its users to manage claims. Most of the users are not developers,
 nor database administrators, or even users. In fact, Excel and Outlook are the
 primary two applications used.
 
-That means a User Interface is needed. This is it. 
+That means a User Interface is needed. This is it.
 
+* Hacking
+
+The gui itself, outside the monorepo, is in github
+
+#+begin_src shell
+guix install git gcc-toolchain gerbil-unstable \
+    linux-libre-headers pkg-config opensl
+git clone git@github.com:drewc/ecm-gui.git
+
+export CPATH=$CPATH:~/.guix-profile/include/
+export LIBRARY_PATH=$LIBRARY_PATH:~/.guix-profile/lib
+gxpkg install github.com/fare/gerbil-utils
+
+gxpkg install github.com/drewc/ftw
+gxpkg install github.com/drewc/gerbil-postgresql
+
+cd /tmp/
+dd if=/dev/zero of=swap.img bs=1M count=40960
+mkswap swap.img
+chmod 0600 swap.img
+sudo chown root:root swap.img
+sudo swapon swap.img
+cd -
+
+
+cd ecm-gui; ./build.ss
+
+#+end_src
+
+** Update FROM the monorepo
+#+begin_src shell
+git subtree push --prefix=gui ./ gui
+git push gui gui:main
+#+end_src
 
 * Vite
 

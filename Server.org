@@ -1,42 +1,72 @@
 #+TITLE: Server
 
-The GUI requires a server for certain actions. By default it runs on port
-~8988~.
+The GUI requires a Web Server for certain actions.
+
 
 * Static Exec
 
 #+begin_src scheme :tangle ecm-gui.ss
-(import ;; :drewc/ftw
-        ;;:ecm/gui/endpoints/login
-        ;:ecm/gui/endpoints/report/pmi
-        ;:ecm/gui/server/httpd
-        ;:gerbil/gambit/threads
-        )
-#;(import :drewc/ftw :std/misc/uuid :std/sugar
-        :drewc/db/postgresql ;;:drewc/db/dbi
-        ;;:drewc/pg/connect ;; :std/error
-
-        )
-
-;; (import :drewc/ftw/httpd/handler
-;;         :drewc/ftw/httpd/endpoint
-;;         :drewc/ftw/httpd/cookies
-;;         :drewc/ftw/httpd/parameters
-;;         :std/net/httpd
-;;         :std/net/socket
-;;         :std/os/socket
-;;        ; :drewc/ftw
-;;         )
-(import ;:drewc/ftw ; :std/misc/uuid :std/sugar
-         :drewc/db/postgresql ;; :drewc/db/dbi
-        ;; :drewc/pg/connect :std/error
+(import :drewc/ftw
+        :ecm/gui/endpoints/login
+        :ecm/gui/endpoints/report/pmi
+        :ecm/gui/server/httpd
+        :gerbil/gambit/threads
+        :std/sugar
+        ./conf
+        :std/getopt
         )
 (export main)
 
+(extern namespace: #f replx macro-thread-tgroup)
+(extern (display-exception display-exception))
+
+(##current-input-port (##repl-input-port))
+(##current-output-port (##repl-output-port))
+
+(define (##repl-no-banner)
+  (##repl-debug
+   (lambda (first port) #f)
+   #t))
+
+(def main-opts
+  (getopt
+   (option '--wwwroot "--wwwroot"
+           help: "The root for the http file server")))
+
+#;(define (##new-repl)
+  (declare (not interrupts-enabled))
+  (##thread-start!
+   (let* ((primordial-tgroup
+           (macro-thread-tgroup ##primordial-thread))
+          (input-port ##stdin-port)
+          (output-port ##stdout-port)
+          (thread
+           (##make-root-thread
+            (lambda ()
+                (let ((input-port (##repl-input-port))
+                      (output-port (##repl-output-port)))
+                  (##parameterize ((##current-input-port input-port)
+                                   (##current-output-port output-port))
+                    ;; start REPL
+                    (##repl-no-banner))))
+            (##void) ;; no name
+            primordial-tgroup
+            input-port
+            output-port)))
+     thread)))
+
 (def (main . args)
-  (display "ECM Gui v2.1.42")
-  ;(thread-join! (ensure-ecm-httpd!))
-  )
+  (def httpd (ensure-ecm-httpd!))
+  (set! args (getopt-parse main-opts args))
+  (def wwwroot (or (hash-get args '--wwwroot) (find-wwwroot)))
+  (set! (conf-ref 'wwwroot) wwwroot)
+
+  (displayln wwwroot)
+  (display "ECM Gui v2.a4a.42\n")
+
+  (##repl-no-banner)
+  (display "\nJoining httpd thread")
+   (thread-join! httpd))
 #+end_src
 
 #+begin_src shell :tangle bin/ecm-gui.sh :shebang #!/usr/bin/env bash
@@ -69,23 +99,38 @@ gxi -e '(import
 
 
 * /File/ ~server/httpd.ss~
-:PROPERTIES:
-:ID:       f2001572-534b-40c0-8995-633dfbec70db
-:END:
+
+By default it runs on port ~8988~.
+
+The "client" is served from the ~(conf-ref 'wwwroot)~.
+
 
 #+begin_src scheme :tangle server/httpd.ss
 (export #t)
 
-(import :drewc/ftw :std/format)
+(import :drewc/ftw :std/format ../conf :std/srfi/13)
 
 (def ecm-http-server #f)
 
-(def (ensure-ecm-httpd! address: (address "127.0.0.1") port: (port 8988))
+(def (ensure-ecm-httpd! address: (address "0.0.0.0") port: (port 8988))
   (def saddress (format "~a:~a" address port))
   (or ecm-http-server
       (let ((s (start-ftw-http-server! saddress)))
         (set! ecm-http-server s)
         s)))
+
+(def (match-file req)
+  (def fn (string-trim (http-request-path req) #\/))
+  (when (string= fn "") (set! fn "index.html"))
+  (def wwwroot (conf-ref 'wwwroot))
+  (def filename (path-expand fn wwwroot))
+  (displayln "Searchgn for " filename)
+  (and (file-exists? filename)
+       [filename]))
+
+(define-endpoint client-files match-file priority: 50)
+(def client-files/GET (cut http-response-static-file* <>))
+
 
 ;; (def static-root-dir (current-directory))
 

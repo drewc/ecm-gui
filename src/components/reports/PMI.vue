@@ -75,8 +75,10 @@ function runReport() {
 
  }
 
+const fn = ref('Performance Management Information.xlsx')
 const saveReport =  () => {
- saveWorkBook(workbook.value)
+ console.log("Savibing resports", workbook.value)
+ saveWorkBook(fn.value, workbook.value)
 }
 
 </script>
@@ -93,13 +95,13 @@ const saveReport =  () => {
     :min-input-length="0" :item-projection="(i) => i.name"
     @select-item="(i) => {syndicate = i }"/>
 </div>
-<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left">
+<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left uk-margin-top">
   From: <datepicker v-model="start_date" :upperLimit="current_date"/>
 </div>
-<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left">
+<div class="uk-card uk-card-default uk-card-body uk-card-hover uk-card-small uk-margin-left uk-margin-top">
   To: <datepicker v-model="end_date" :upperLimit="current_date" />
 </div>
-<div class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left">
+<div class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left uk-margin-top">
   <div id="lob" hidden>
             <select class="uk-select" v-model="lob">
                 <option>Liability</option>
@@ -114,7 +116,7 @@ const saveReport =  () => {
         <a class="uk-alert-close" uk-close></a>
         <p style="text-align:center"> {{ error }} </p>
       </div>
-<div v-if="syndicate" class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left">
+<div v-if="syndicate" class="uk-card uk-card-default uk-card-hover uk-card-small uk-card-body uk-flex uk-flex-center uk-margin-left uk-margin-top">
     <button v-if="!loading" @click="runReport"
             class="uk-button uk-button-primary" type="button">Run Report</button>
     <div v-if="loading" uk-spinner></div>
@@ -124,7 +126,10 @@ const saveReport =  () => {
 
  </div>
    <hr>
-    <SpreadSheet v-if="workbook" :sheet="worksheet" />
+   <div v-if="workbook">
+     <button @click="saveReport" class="uk-align-right uk-button"> Save Spreadsheet</button>
+    <SpreadSheet :sheet="worksheet" />
+   </div>
   </div>
 
 </template>
