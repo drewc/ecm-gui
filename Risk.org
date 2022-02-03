@@ -1,0 +1,82 @@
+#+TITLE: Risk
+
+Risks are a big deal.
+
+
+* /Widget/ SelectRisk
+
+#+begin_src vue :tangle src/components/widgets/SelectRiskType.vue
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { get } from 'axios'
+
+import SimpleTypeAhead from 'vue3-simple-typeahead';
+
+const props = defineProps({
+    modelValue: Object,
+    allowNone: Boolean
+})
+const emits = defineEmits(['update:modelValue']);
+
+const selectItem = (i) => {
+  emits('update:modelValue', i)
+}
+
+
+
+const risk_types = ref([])
+const error = ref()
+
+const typeahead = ref()
+onMounted(() => {
+ const ta = typeahead.value
+ ta.$el.getElementsByTagName("input")[0].setAttribute("class", "uk-input")
+})
+
+get('/rpc/db/risk-types').then(
+  r => {
+    const none = !!props.allowNone ? [{ name: "None" }] : []
+    risk_types.value = [...none, ...r.data.risk_types]
+  })
+  .catch(e => error.value = e);
+
+</script>
+
+<template>
+ <SimpleTypeAhead
+    ref="typeahead"
+    placeholder="Risk Type" :items="risk_types"
+    :min-input-length="0" :item-projection="(i) => i.name"
+    @select-item="selectItem"
+   />
+</template>
+
+
+#+end_src
+
+* ~://rpc/db/risk-types~ endpoint
+
+#+begin_src scheme :tangle ./endpoints/db/risk-types.ss :noweb yes
+(export #t)
+(import :drewc/ftw
+        :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database
+        )
+(declare (not optimize-dead-definitions))
+
+
+(define-json-endpoint risk-types "/rpc/db/risk-types")
+
+(def-auth (risk-types/GET)
+  (def risk-types (ecm-sql-e*
+             sql-eval-query "
+SELECT json_build_object('risk_types', rt)
+ FROM (SELECT json_agg(t.*) rt
+       FROM (SELECT * FROM
+        (select risk_type_name AS name, count(*)
+        FROM risk GROUP BY risk_type_name) ts
+    ORDER BY count DESC) t) tst
+"))
+  (respond/JSON (car risk-types)))
+#+end_src

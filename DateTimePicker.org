@@ -1,0 +1,36 @@
+#+TITLE: Date Time Picker
+
+Here are the docs. We just re-style it for the most part. [[file:doc/vue3-date-time-picker.org::#vue3-date-time-picker][vue3-date-time-picker]]
+
+#+begin_src vue :tangle src/components/DateTimePicker.vue
+<script>
+import Datepicker from 'vue3-date-time-picker'
+export default Datepicker
+</script>
+<style lang="scss">
+  @import "uikit/src/scss/variables.scss";
+  $dp__font_family: $global-font-family;
+  $dp__font_size: $global-font-size;
+  @import 'vue3-date-time-picker/src/Vue3DatePicker/style/main.scss';
+.dp__input {
+  background-color: var(--dp-background-color);
+  border-radius: $dp__border_radius;
+  font-family: $dp__font_family;
+  border: 1px solid var(--dp-border-color);
+  outline: none;
+  transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  width: 100%;
+  font-size: $dp__font_size;
+  line-height: $dp__font_size * 1.5;
+  padding-right: $form-select-padding-right * 2;
+  color: $global-color;
+  box-sizing: border-box;
+
+  &::placeholder {
+    opacity: unset;
+    text-align: center;
+  }
+}
+</style>
+
+#+end_src

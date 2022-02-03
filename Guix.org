@@ -1,0 +1,107 @@
+#+TITLE: Guix
+
+#+begin_src scheme :tangle guix/ecm-guix-config.scm
+(use-modules (gnu) (guix modules)
+             (gnu packages linux)
+             (gnu packages databases)
+             (gnu system linux-initrd))
+(use-service-modules nfs certbot web networking ssh databases)
+(use-package-modules admin certs package-management ssh tls)
+
+(define %nginx-deploy-hook               
+  (program-file
+   "nginx-deploy-hook"                                                                    
+   #~(let ((pid (call-with-input-file "/var/run/nginx/pid" read)))
+       (kill pid SIGHUP))))
+
+(operating-system
+ (kernel linux-libre)
+ (host-name "ECM-http-one")
+ (timezone "America/Vancouver")
+ (locale "en_CA.UTF-8")
+ ;; This goofy code will generate the grub.cfg
+ ;; without installing the grub bootloader on disk.
+ (bootloader (bootloader-configuration
+              (bootloader
+               (bootloader
+                (inherit grub-bootloader)
+                (installer #~(const #true))))))
+ (file-systems (cons (file-system
+                      (device "/dev/sda")
+                      (mount-point "/")
+                      (type "ext4"))
+                     %base-file-systems))
+ (swap-devices (list "/dev/sdb"))
+
+
+ (initrd-modules (cons "virtio_scsi"    ; Needed to find the disk
+                       %base-initrd-modules))
+ (users (cons*
+         (user-account
+          (name "ecm-http")
+          (uid 1002)
+          (group "ecm-http")
+          (supplementary-groups '("wheel"))
+          (home-directory "/home/ecm-http"))
+         (user-account
+          (name "drewc")
+          (group "users")
+          ;; Adding the account to the "wheel" group
+          ;; makes it a sudoer.
+          (supplementary-groups '("wheel"))
+          (home-directory "/home/drewc"))
+         %base-user-accounts))
+ (groups (cons
+          (user-group (name "ecm-http") (id 30002))
+          %base-groups))
+
+ (packages (cons* nss-certs             ;for HTTPS access
+                  openssh-sans-x
+                  %base-packages))
+
+ (services (cons*
+            (service dhcp-client-service-type)
+            #;(service certbot-service-type
+                     (certbot-configuration
+                      (email "me@drewc.ca")
+                      (webroot "/srv/ecm-gui/cert")
+                      (certificates
+                       (list
+                        (certificate-configuration
+                         (name "ecm.maxwellclaims.net")
+                         (domains '(#;"*.ecm-http-one.linode.maxwellclaims.net"
+                                    "ecm-http-one.linode.maxwellclaims.net"))
+                         (deploy-hook %nginx-deploy-hook))))))
+            (service nginx-service-type
+              (nginx-configuration
+               (server-blocks
+                (list (nginx-server-configuration
+                       (server-name '("beta.maxwellclaims.net"))
+                       (listen '("80" "443 ssl http2"
+                                 "[::]:80" "[::]:443 ssl http2"
+                                 ))
+                       (ssl-certificate "/home/ecm-http/ssl/newmaxwellclaims.net.crt")
+                       (ssl-certificate-key "/home/ecm-http/ssl/newmaxwellclaims.net.key")
+                       (root "/srv/ecm-gui/wwwroot")
+                       (locations
+                       (list
+                        (nginx-location-configuration
+                         (uri "/rpc")
+                         (body '("proxy_pass http://gui-server;")))
+                         #;(nginx-location-configuration ;certbot
+                          (uri "/.well-known")
+                       (body (list "root /srv/ecm-gui;"))))))))
+               (upstream-blocks
+                (list (nginx-upstream-configuration
+                       (name "gui-server")
+                       (servers (list "localhost:8988")))))))
+            (service openssh-service-type
+                     (openssh-configuration
+                      (openssh openssh-sans-x)
+                      (password-authentication? #true)
+                      (authorized-keys
+                       `(("drewc" ,(local-file "./drewc_rsa.pub"))
+                         ("root" ,(local-file "./drewc_rsa.pub"))))))
+            (modify-services %base-services))))
+
+#+end_src

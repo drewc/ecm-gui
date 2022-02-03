@@ -1,0 +1,90 @@
+#+TITLE: Syndicate
+
+Syndicates are a big deal.
+
+
+* /Widget/ SelectSyndicate
+
+#+begin_src vue :tangle src/components/widgets/SelectSyndicate.vue :mkdirp t
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { get } from 'axios'
+
+import SimpleTypeAhead from '../SimpleTypeAhead.vue';
+
+const props = defineProps({
+    modelValue: Object
+})
+const emits = defineEmits(['update:modelValue']);
+
+const selectItem = (i) => {
+  emits('update:modelValue', i)
+}
+
+const sortItems = ({input, items}) => {
+  const comp = (i, str) => i.name.startsWith(str) ? 1 : 0
+  items.sort((a,b) => 0 - comp(a, input) + comp(b, input))
+  console.log(items)
+}
+
+const syndicates = ref([])
+const error = ref()
+
+const typeahead = ref()
+let selecta;
+
+onMounted(() => {
+ const ta = typeahead.value
+ selecta = ta
+ ta.$el.getElementsByTagName("input")[0].setAttribute("class", "uk-input")
+})
+
+get('/rpc/db/syndicates').then(
+  r => syndicates.value = r.data.syndicates)
+  .catch(e => error.value = e);
+
+</script>
+
+<template>
+ <SimpleTypeAhead
+    ref="typeahead"
+    placeholder="Syndicate Name" :items="syndicates"
+    :min-input-length="0" :item-projection="(i) => i.name"
+    @select-item="selectItem" @onInput="sortItems"
+   />
+</template>
+
+
+#+end_src
+
+* ~://rpc/db/syndicates~ endpoint
+
+#+begin_src scheme :tangle ./endpoints/db/syndicates.ss :noweb yes
+(export #t)
+(import :drewc/ftw
+        :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database
+        )
+(declare (not optimize-dead-definitions))
+
+
+(define-json-endpoint syndicates "/rpc/db/syndicates")
+
+(def-auth (syndicates/GET)
+  (def syns (ecm-sql-e*
+             sql-eval-query "
+SELECT json_build_object('syndicates', syna)
+ FROM (SELECT json_agg(row_to_json(syns)) AS syna
+     FROM (SELECT
+            person_name(syndicate_id) AS name,
+            syndicate_id,
+            max(effective_date) AS latest_effective,
+            count(*) AS number_of_contracts
+            FROM contract
+            WHERE syndicate_id IS NOT NULL
+           GROUP BY syndicate_id
+           ORDER BY number_of_contracts DESC,
+           latest_effective DESC, name) syns) moresyns"))
+  (respond/JSON (car syns)))
+#+end_src

@@ -1,0 +1,24 @@
+#+TITLE: Storage: DB in the client
+
+I don't want to have to keep typing the same things in search over and over
+again when I only access a tiny bit of the 60,000+ claims.
+
+There are likely a bunch of other things that should be cached so here we go.
+
+https://localforage.github.io/localForage/ is a good start.
+
+Here's the docs: [[file:doc/localforage.org::#localforage][localForage]]
+#+begin_src js :tangle ./src/assets/storage.js
+import localforage from 'localforage'
+
+localforage.config({
+  name: 'ECM GUI',
+  storageName: 'ecmgui'
+});
+
+export const cache = localforage;
+
+export default { localforage }
+
+
+#+end_src

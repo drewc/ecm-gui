@@ -1,0 +1,143 @@
+#+TITLE: Contract
+
+Contracts are a big deal.
+
+* /Widget/ InlineContract
+
+For searching, and selecting, and listing etc etc a contract needs to be displayed as an inlineblock.
+
+#+begin_src vue :tangle src/components/widgets/InlineContract.vue
+<script setup>
+const props = defineProps({
+    contract: Object
+})
+</script>
+<template>
+  <div style="display: inline-block">
+    <h4 style="display: inline-block" v-html="contract.contract_number"></h4>
+ <span v-html="' ' + contract.effective_date + ' to ' + contract.expiry_date"></span>
+ <small v-if="contract.syndicate_id" uk-tooltip="Syndicate"
+        v-html="' ' + contract.syndicate"></small>
+ <small v-if="contract.london_broker_id" uk-tooltip="London Broker"
+        v-html="', ' + contract.london_broker"></small>
+ <small v-if="contract.insurance_company_id" uk-tooltip="Insurance Company"
+        v-html="', ' + contract.insurance_company"></small>
+ <small v-if="contract.agency_id" uk-tooltip="Agency"
+        v-html="', ' + contract.agency"></small>
+  </div>
+</template>
+#+end_src
+
+
+* /Widget/ SelectContract
+
+#+begin_src vue :tangle src/components/widgets/SelectContract.vue
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+
+import SimpleTypeAhead from '../SimpleTypeAhead.vue';
+
+const store = useStore();
+const user = computed(() => store && store.state && store.state.user)
+
+if (contracts.value.length == 0) updateContracts();
+const props = defineProps({
+    modelValue: Object
+})
+const emits = defineEmits(['update:modelValue']);
+
+const selectItem = (i) => {
+  emits('update:modelValue', i)
+}
+
+
+const error = ref(err)
+const inp = (ta) => ta.$el.getElementsByTagName("input")[0].setAttribute("class", "uk-input")
+
+const typeahead = ref()
+
+onMounted(() => {
+ const ta = typeahead.value
+ ta && inp(ta)
+if (contracts.value.length == 0) updateContracts();
+})
+
+
+</script>
+
+<script>
+import { ref } from 'vue'
+import { get } from 'axios'
+
+const contracts = ref([])
+const err = ref()
+
+const updateContracts = () => {
+   get('/rpc/db/contracts').then(
+     r => { contracts.value = r.data.contracts})
+ .catch(e => err.value = e);
+}
+
+</script>
+<template>
+<SimpleTypeAhead
+  :hidden="contracts.length === 0" ref="typeahead"
+  uk-tooltip="title: Enter at least 3 characters of the Contract#; pos: top"
+    placeholder="Contract Number" :items="contracts"
+    :min-input-length="3" :item-projection="(i) => i.contract_number"
+    @select-item="selectItem">
+ <template #list-item-text="{ boldMatchText, itemProjection, item }">
+ <h4 style="display: inline-block" v-html="boldMatchText(itemProjection(item))"></h4>
+ <span v-html="' ' + item.effective_date + '-' + item.expiry_date"></span>
+ <small v-if="item.syndicate_id" uk-tooltip="Syndicate"
+        v-html="' ' + item.syndicate"></small>
+ <small v-if="item.london_broker_id" uk-tooltip="London Broker"
+        v-html="', ' + item.london_broker"></small>
+ <small v-if="item.insurance_company_id" uk-tooltip="Insurance Company"
+        v-html="', ' + item.insurance_company"></small>
+ <small v-if="item.agency_id" uk-tooltip="Agency"
+        v-html="', ' + item.agency"></small>
+  </template>
+</SimpleTypeAhead>
+
+<div v-if="contracts.length === 0" uk-spinner></div>
+</template>
+
+#+end_src
+
+* ~://rpc/db/contracts~ endpoint
+
+#+begin_src scheme :tangle ./endpoints/db/contracts.ss :noweb yes
+(export #t)
+(import :drewc/ftw
+        :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database
+        )
+(declare (not optimize-dead-definitions))
+
+
+(define-json-endpoint contracts "/rpc/db/contracts")
+
+(def contracts-text "
+SELECT json_build_object('contracts', contracts)
+ FROM (SELECT json_agg(row_to_json(cs)) AS contracts
+       FROM
+      (SELECT contract_id, contract_number, effective_date, expiry_date,
+           agency_id, person_name(agency_id) AS agency,
+           syndicate_id, person_name(syndicate_id) AS syndicate,
+           london_broker_id, person_name(london_broker_id) AS london_broker,
+           insurance_company_id, person_name(insurance_company_id) AS insurance_company
+
+           FROM contract WHERE contract_number IS NOT NULL
+             ORDER BY effective_date IS NOT NULL DESC,
+               effective_date DESC) cs
+      ) c
+    ")
+
+(def-auth (contracts/GET)
+  (def contracts (ecm-sql-e*
+                  sql-eval-query contracts-text))
+  (respond/JSON (car contracts)))
+#+end_src

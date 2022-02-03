@@ -1,0 +1,7 @@
+#+TITLE: Browsers
+
+
+#+begin_src shell
+export PATH=$PATH:$(~/bin/npm bin -g)
+pnpm add detect-browser
+#+end_src

@@ -1,0 +1,82 @@
+#+TITLE: Syndicate
+
+Syndicates are a big deal.
+
+
+* /Widget/ SelectDiaryUser
+
+#+begin_src vue :tangle src/components/widgets/SelectDiaryUser.vue 
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { get } from 'axios'
+
+import SimpleTypeAhead from '../SimpleTypeAhead.vue';
+
+const props = defineProps({
+    modelValue: Object
+})
+const emits = defineEmits(['update:modelValue']);
+
+const selectItem = (i) => {
+  emits('update:modelValue', i)
+}
+
+const sortItems = ({input, items}) => {
+  const comp = (i, str) => i.name.startsWith(str) ? 1 : 0
+  items.sort((a,b) => 0 - comp(a, input) + comp(b, input))
+  console.log(items)
+}
+
+const diary_users = ref([])
+const error = ref()
+
+const typeahead = ref()
+let selecta;
+
+onMounted(() => {
+ const ta = typeahead.value
+ selecta = ta
+ ta.$el.getElementsByTagName("input")[0].setAttribute("class", "uk-input")
+})
+
+get('/rpc/db/diary-users').then(
+  r => diary_users.value = r.data.diary_users)
+  .catch(e => error.value = e);
+
+</script>
+
+<template>
+ <SimpleTypeAhead
+    ref="typeahead"
+    placeholder="Diary_user Name" :items="diary_users"
+    :min-input-length="0" :item-projection="(i) => i.name"
+    @select-item="selectItem" @onInput="sortItems"
+   />
+</template>
+
+
+#+end_src
+
+* ~://rpc/db/diary-user~ endpoint
+
+#+begin_src scheme :tangle ./endpoints/db/diary-users.ss :noweb yes
+(export #t)
+(import :drewc/ftw
+        :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database)
+(declare (not optimize-dead-definitions))
+
+
+(define-json-endpoint diary-users "/rpc/db/diary-users")
+
+(def di-query"SELECT json_build_object('diary_users', json_agg(di))
+ FROM (SELECT * FROM
+       (SELECT user_id, person_short_name(person_id) AS name
+         FROM (select distinct app_user_id AS user_id FROM diary_entry) de
+         JOIN app_user ON(user_id = app_user_id)) du ORDER BY name) di;
+")
+(def-auth (diary-users/GET)
+  (def dis (ecm-sql-e* sql-eval-query di-query))
+  (respond/JSON (car dis)))
+#+end_src

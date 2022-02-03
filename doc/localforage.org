@@ -1,0 +1,375 @@
+* localForage
+  :PROPERTIES:
+  :CUSTOM_ID: localforage
+  :END:
+[[http://travis-ci.org/localForage/localForage][[[https://travis-ci.org/localForage/localForage.svg?branch=master]]]]
+[[http://badge.fury.io/js/localforage][[[https://badge.fury.io/js/localforage.svg]]]]
+[[https://david-dm.org/localForage/localForage][[[https://img.shields.io/david/localForage/localForage.svg]]]]
+[[https://npmcharts.com/compare/localforage?minimal=true][[[https://img.shields.io/npm/dm/localforage.svg?maxAge=2592000]]]]
+[[https://www.jsdelivr.com/package/npm/localforage][[[https://data.jsdelivr.com/v1/package/npm/localforage/badge?style=rounded]]]]
+[[https://bundlephobia.com/result?p=localforage@1.10.0][[[https://badgen.net/bundlephobia/minzip/localforage]]]]
+
+localForage is a fast and simple storage library for JavaScript.
+localForage improves the offline experience of your web app by using
+asynchronous storage (IndexedDB or WebSQL) with a simple,
+=localStorage=-like API.
+
+localForage uses localStorage in browsers with no IndexedDB or WebSQL
+support. See
+[[https://github.com/localForage/localForage/wiki/Supported-Browsers-Platforms][the
+wiki for detailed compatibility info]].
+
+To use localForage, just drop a single JavaScript file into your page:
+
+#+begin_example
+  <script src="localforage/dist/localforage.js"></script>
+  <script>localforage.getItem('something', myCallback);</script>
+#+end_example
+
+Try the [[http://codepen.io/thgreasi/pen/ojYKeE][live example]].
+
+Download the
+[[https://github.com/localForage/localForage/releases/latest][latest
+localForage from GitHub]], or install with
+[[https://www.npmjs.com/][npm]]:
+
+#+begin_src shell
+  npm install localforage
+#+end_src
+
+** Support
+   :PROPERTIES:
+   :CUSTOM_ID: support
+   :END:
+Lost? Need help? Try the
+[[https://localforage.github.io/localForage][localForage API
+documentation]]. [[https://localforage.docschina.org][localForage
+API文档也有中文版。]]
+
+If you're having trouble using the library, running the tests, or want
+to contribute to localForage, please look through the
+[[https://github.com/localForage/localForage/issues][existing issues]]
+for your problem first before creating a new one. If you still need
+help, [[https://github.com/localForage/localForage/issues/new][feel free
+to file an issue]].
+
+* How to use localForage
+  :PROPERTIES:
+  :CUSTOM_ID: how-to-use-localforage
+  :END:
+** Callbacks vs Promises
+   :PROPERTIES:
+   :CUSTOM_ID: callbacks-vs-promises
+   :END:
+Because localForage uses async storage, it has an async API. It's
+otherwise exactly the same as the
+[[https://hacks.mozilla.org/2009/06/localstorage/][localStorage API]].
+
+localForage has a dual API that allows you to either use Node-style
+callbacks or [[https://www.promisejs.org/][Promises]]. If you are unsure
+which one is right for you, it's recommended to use Promises.
+
+Here's an example of the Node-style callback form:
+
+#+begin_src js
+  localforage.setItem('key', 'value', function (err) {
+    // if err is non-null, we got an error
+    localforage.getItem('key', function (err, value) {
+      // if err is non-null, we got an error. otherwise, value is the value
+    });
+  });
+#+end_src
+
+And the Promise form:
+
+#+begin_src js
+  localforage.setItem('key', 'value').then(function () {
+    return localforage.getItem('key');
+  }).then(function (value) {
+    // we got our value
+  }).catch(function (err) {
+    // we got an error
+  });
+#+end_src
+
+Or, use =async=/=await=:
+
+#+begin_src js
+  try {
+      const value = await localforage.getItem('somekey');
+      // This code runs once the value has been loaded
+      // from the offline store.
+      console.log(value);
+  } catch (err) {
+      // This code runs if there were any errors.
+      console.log(err);
+  }
+#+end_src
+
+For more examples, please visit
+[[https://localforage.github.io/localForage][the API docs]].
+
+** Storing Blobs, TypedArrays, and other JS objects
+   :PROPERTIES:
+   :CUSTOM_ID: storing-blobs-typedarrays-and-other-js-objects
+   :END:
+You can store any type in localForage; you aren't limited to strings
+like in localStorage. Even if localStorage is your storage backend,
+localForage automatically does =JSON.parse()= and =JSON.stringify()=
+when getting/setting values.
+
+localForage supports storing all native JS objects that can be
+serialized to JSON, as well as ArrayBuffers, Blobs, and TypedArrays.
+Check the
+[[https://localforage.github.io/localForage/#data-api-setitem][API
+docs]] for a full list of types supported by localForage.
+
+All types are supported in every storage backend, though storage limits
+in localStorage make storing many large Blobs impossible.
+
+** Configuration
+   :PROPERTIES:
+   :CUSTOM_ID: configuration
+   :END:
+You can set database information with the =config()= method. Available
+options are =driver=, =name=, =storeName=, =version=, =size=, and
+=description=.
+
+Example:
+
+#+begin_example
+  localforage.config({
+      driver      : localforage.WEBSQL, // Force WebSQL; same as using setDriver()
+      name        : 'myApp',
+      version     : 1.0,
+      size        : 4980736, // Size of database, in bytes. WebSQL-only for now.
+      storeName   : 'keyvaluepairs', // Should be alphanumeric, with underscores.
+      description : 'some description'
+  });
+#+end_example
+
+*Note:* you must call =config()= /before/ you interact with your data.
+This means calling =config()= before using =getItem()=, =setItem()=,
+=removeItem()=, =clear()=, =key()=, =keys()= or =length()=.
+
+** Multiple instances
+   :PROPERTIES:
+   :CUSTOM_ID: multiple-instances
+   :END:
+You can create multiple instances of localForage that point to different
+stores using =createInstance=. All the configuration options used by
+[[#configuration][=config=]] are supported.
+
+#+begin_example
+  var store = localforage.createInstance({
+    name: "nameHere"
+  });
+
+  var otherStore = localforage.createInstance({
+    name: "otherName"
+  });
+
+  // Setting the key on one of these doesn't affect the other.
+  store.setItem("key", "value");
+  otherStore.setItem("key", "value2");
+#+end_example
+
+** RequireJS
+   :PROPERTIES:
+   :CUSTOM_ID: requirejs
+   :END:
+You can use localForage with [[http://requirejs.org/][RequireJS]]:
+
+#+begin_example
+  define(['localforage'], function(localforage) {
+      // As a callback:
+      localforage.setItem('mykey', 'myvalue', console.log);
+
+      // With a Promise:
+      localforage.setItem('mykey', 'myvalue').then(console.log);
+  });
+#+end_example
+
+** TypeScript
+   :PROPERTIES:
+   :CUSTOM_ID: typescript
+   :END:
+If you have the
+[[https://www.typescriptlang.org/docs/handbook/compiler-options.html][=allowSyntheticDefaultImports=
+compiler option]] set to =true= in your
+[[https://www.typescriptlang.org/docs/handbook/tsconfig-json.html][tsconfig.json]]
+(supported in TypeScript v1.8+), you should use:
+
+#+begin_example
+  import localForage from "localforage";
+#+end_example
+
+Otherwise you should use one of the following:
+
+#+begin_example
+  import * as localForage from "localforage";
+  // or, in case that the typescript version that you are using
+  // doesn't support ES6 style imports for UMD modules like localForage
+  import localForage = require("localforage");
+#+end_example
+
+** Framework Support
+   :PROPERTIES:
+   :CUSTOM_ID: framework-support
+   :END:
+If you use a framework listed, there's a localForage storage driver for
+the models in your framework so you can store data offline with
+localForage. We have drivers for the following frameworks:
+
+- [[https://github.com/ocombe/angular-localForage][AngularJS]]
+- [[https://github.com/Alorel/ngforage/][Angular 4 and up]]
+- [[https://github.com/localForage/localForage-backbone][Backbone]]
+- [[https://github.com/genkgo/ember-localforage-adapter][Ember]]
+- [[https://github.com/dmlzj/vlf][Vue]]
+- [[https://github.com/nuxt-community/localforage-module][NuxtJS]]
+
+If you have a driver you'd like listed, please
+[[https://github.com/localForage/localForage/issues/new][open an issue]]
+to have it added to this list.
+
+** Custom Drivers
+   :PROPERTIES:
+   :CUSTOM_ID: custom-drivers
+   :END:
+You can create your own driver if you want; see the
+[[https://localforage.github.io/localForage/#driver-api-definedriver][=defineDriver=]]
+API docs.
+
+There is a
+[[https://github.com/localForage/localForage/wiki/Custom-Drivers][list
+of custom drivers on the wiki]].
+
+* Working on localForage
+  :PROPERTIES:
+  :CUSTOM_ID: working-on-localforage
+  :END:
+You'll need [[http://nodejs.org/][node/npm]] and
+[[http://bower.io/#installing-bower][bower]].
+
+To work on localForage, you should start by
+[[https://github.com/localForage/localForage/fork][forking it]] and
+installing its dependencies. Replace =USERNAME= with your GitHub
+username and run the following:
+
+#+begin_src shell
+  # Install bower globally if you don't have it:
+  npm install -g bower
+
+  # Replace USERNAME with your GitHub username:
+  git clone git@github.com:USERNAME/localForage.git
+  cd localForage
+  npm install
+  bower install
+#+end_src
+
+Omitting the bower dependencies will cause the tests to fail!
+
+** Running Tests
+   :PROPERTIES:
+   :CUSTOM_ID: running-tests
+   :END:
+You need PhantomJS installed to run local tests. Run =npm test= (or,
+directly: =grunt test=). Your code must also pass the
+[[http://jshint.com/][linter]].
+
+localForage is designed to run in the browser, so the tests explicitly
+require a browser environment. Local tests are run on a headless WebKit
+(using [[http://phantomjs.org][PhantomJS]]).
+
+When you submit a pull request, tests will be run against all browsers
+that localForage supports on Travis CI using
+[[https://saucelabs.com/][Sauce Labs]].
+
+** Library Size
+   :PROPERTIES:
+   :CUSTOM_ID: library-size
+   :END:
+As of version 1.7.3 the payload added to your app is rather small.
+Served using gzip compression, localForage will add less than 10k to
+your total bundle size:
+
+#+begin_html
+  <dl>
+#+end_html
+
+#+begin_html
+  <dt>
+#+end_html
+
+minified
+
+#+begin_html
+  </dt>
+#+end_html
+
+#+begin_html
+  <dd>
+#+end_html
+
+=~29kB=
+
+#+begin_html
+  </dd>
+#+end_html
+
+#+begin_html
+  <dt>
+#+end_html
+
+gzipped
+
+#+begin_html
+  </dt>
+#+end_html
+
+#+begin_html
+  <dd>
+#+end_html
+
+=~8.8kB=
+
+#+begin_html
+  </dd>
+#+end_html
+
+#+begin_html
+  <dt>
+#+end_html
+
+brotli'd
+
+#+begin_html
+  </dt>
+#+end_html
+
+#+begin_html
+  <dd>
+#+end_html
+
+=~7.8kB=
+
+#+begin_html
+  </dd>
+#+end_html
+
+#+begin_html
+  </dl>
+#+end_html
+
+* License
+  :PROPERTIES:
+  :CUSTOM_ID: license
+  :END:
+This program is free software; it is distributed under an
+[[https://github.com/localForage/localForage/blob/master/LICENSE][Apache
+License]].
+
+--------------
+
+Copyright (c) 2013-2016 [[https://mozilla.org][Mozilla]]
+([[https://github.com/localForage/localForage/graphs/contributors][Contributors]]).

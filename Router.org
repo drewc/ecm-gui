@@ -1,0 +1,29 @@
+#+TITLE: Vue Router
+
+
+* /File/ ~routes.js~
+
+
+#+begin_src js :tangle src/router/routes.js
+
+const PMI = () => import('../components/reports/PMI.vue')
+const Pillar3 = () => import('../components/reports/Pillar3.vue')
+const Reports = () => import('../components/Reports.vue')
+const ChequeRegister = () => import('../components/reports/ChequeRegister.vue')
+const Bordereau = () => import('../components/reports/Bordereau.vue')
+const Diary = () => import('../components/reports/Diary.vue')
+
+
+export const routes = [
+  { path: '/', component: Reports},
+  { path: '/report/pmi', component: PMI },
+  { path: '/report/pillar3', component: Pillar3 },
+  { path: '/report/cheque-register', component: ChequeRegister },
+  { path: '/report/bordereau', component: Bordereau },
+  { path: '/report/diary', component: Diary }
+]
+
+export default routes
+
+
+#+end_src

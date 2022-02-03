@@ -1,0 +1,83 @@
+#+TITLE: Agency
+
+Agencys are a big deal.
+
+
+* /Widget/ SelectAgency
+
+#+begin_src vue :tangle src/components/widgets/SelectAgency.vue
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { get } from 'axios'
+
+import SimpleTypeAhead from '../SimpleTypeAhead.vue';
+
+const props = defineProps({
+    modelValue: Object
+})
+const emits = defineEmits(['update:modelValue']);
+
+const selectItem = (i) => {
+  emits('update:modelValue', i)
+}
+
+
+const agencies = ref([])
+const error = ref()
+
+const typeahead = ref()
+onMounted(() => {
+ const ta = typeahead.value
+ ta.$el.getElementsByTagName("input")[0].setAttribute("class", "uk-input")
+})
+
+get('/rpc/db/agencies').then(
+  r => agencies.value = r.data.agencies)
+  .catch(e => error.value = e);
+
+</script>
+
+<template>
+ <SimpleTypeAhead
+    ref="typeahead"
+    :defaultItem="modelValue"
+    placeholder="Agency Name" :items="agencies"
+    :min-input-length="0" :item-projection="(i) => i.name"
+    @select-item="selectItem"
+   />
+</template>
+
+
+#+end_src
+
+* ~://rpc/db/agencies~ endpoint
+
+#+begin_src scheme :tangle ./endpoints/db/agencies.ss :noweb yes
+(export #t)
+(import :drewc/ftw
+        :std/sugar
+        :drewc/db/dbi :std/srfi/13
+        :ecm/gui/auth :ecm/gui/database
+        )
+(declare (not optimize-dead-definitions))
+
+
+(define-json-endpoint agencies "/rpc/db/agencies")
+
+(def-auth (agencies/GET)
+  (def agencies (ecm-sql-e*
+             sql-eval-query "
+SELECT json_build_object('agencies', aga)
+ FROM (SELECT json_agg(row_to_json(ags)) AS aga
+     FROM (SELECT
+            person_name(agency_id) AS name,
+            agency_id,
+            max(effective_date) AS latest_effective,
+            count(*) AS number_of_contracts
+            FROM contract
+            WHERE agency_id IS NOT NULL
+           GROUP BY agency_id
+           ORDER BY number_of_contracts DESC,
+           latest_effective DESC, name) ags) moreagents"))
+  (respond/JSON (car agencies)))
+#+end_src
